@@ -1,0 +1,5 @@
+# far AR inf representation examples
+EXAMPLE1 = [([0.3, -0.2], [-0.5]), ([0.7, -0.4, 0.1], [0.5, -0.2])]
+
+# near AR ing representation examples
+EXAMPLE2 = [([0.3, -0.2], [-0.5]), ([0.25, -0.15], [-0.5])]

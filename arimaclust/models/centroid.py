@@ -1,61 +1,94 @@
 import numpy as np
-from sklearn.datasets import make_blobs
-import matplotlib.pyplot as plt
+from sklearn.metrics import adjusted_mutual_info_score
+from arimaclust.metrics.matrix import compute_metric
+from arimaclust.data.generate import generate_arma_sample
 
 
 class ConsistentARMAClustering:
 
     def __init__(self, k, metric='piccolo', underlying_model='ARMA', tau=100, max_orders=(3, 3)):
-        if metric != 'piccolo':
+        if metric == 'piccolo':
+            metric_args = {'x_max_orders': max_orders,
+                           'y_max_orders': max_orders,
+                           'tau': tau
+                           }
+        else:
             raise ValueError
         if underlying_model != 'ARMA':
             raise ValueError
         self.metric = metric
+        self.metric_args = metric_args
         self.k = k
         self.underlying_model = underlying_model
         self.tau = tau
         self.labels = None
+        self.D = None
         self.max_orders = max_orders
 
+    @staticmethod
+    def _check_array(X):
+        pass
+
+    def compute_distance_matrix(self, X):
+        self._check_array(X=X)
+        self.D = compute_metric(X=X, metric_name=self.metric, **self.metric_args)
+
     def d(self, x, y):
-        # model_x = self.fit_single_arma(x)
-        # model_y = self.fit_single_arma(y)
-        # x_ar = self.arma_to_ar(model_x)
-        # y_ar = self.arma_to_ar(model_y)
-        return np.linalg.norm(x - y)
+        return compute_metric(X=[x, y], metric_name=self.metric, **self.metric_args)
 
     def arma_to_ar(self, x):
         pass
 
     def fit(self, X):
 
-        centroids = [X[0]]
+        self.compute_distance_matrix(X=X)
+
+        c_inds = [0]
         for k in range(1, self.k):
             d_for_sample = []
-            for x in X:
+            for i, x in enumerate(X):
                 d_from_centroids = []
                 for j in range(k):
-                    d_from_centroids.append(self.d(x=x, y=centroids[j]))
-                d_for_sample.append(min(d_from_centroids))
+                    d_from_centroids.append(self.D[i, c_inds[j]])
+                d_for_sample.append(np.min(d_from_centroids).item())
+
             c_k = np.argmax(d_for_sample)
 
-            centroids.append(X[c_k])
+            c_inds.append(c_k)
 
         labels = []
-        for x in X:
+        for i, x in enumerate(X):
             d_from_centroids = []
-            for x_c in centroids:
-                d_from_centroids.append(self.d(x, x_c))
+            for c_k in c_inds:
+                d_from_centroids.append(self.D[i, c_k])
 
             labels.append(np.argmin(d_from_centroids))
         self.labels_ = labels
         return self
 
 
-kappa = 3
-X, y = make_blobs(n_samples=100, centers=kappa, cluster_std=0.5, n_features=2)
-clustering_model = ConsistentARMAClustering(k=kappa)
-clustering_model.fit(X)
-labels = clustering_model.labels_
-plt.scatter(X[:, 0], X[:, 1], c=labels)
-plt.show()
+if __name__ == '__main__':
+    kappa = 2
+
+    X = []
+
+    ar_params = np.array([0.3, -0.2])
+    ma_params = np.array([-0.5])
+
+    for i in range(5):
+        x = generate_arma_sample(ar_params=ar_params, ma_params=ma_params, t=100)
+        X.append(x)
+
+    ar_params = np.array([0.7, -0.4, 0.1])
+    ma_params = np.array([0.5, -0.2])
+
+    for i in range(5):
+        x = generate_arma_sample(ar_params=ar_params, ma_params=ma_params, t=100)
+        X.append(x)
+
+    print(len(X))
+
+    clustering_model = ConsistentARMAClustering(k=kappa)
+    clustering_model.fit(X)
+    print(clustering_model.labels_)
+

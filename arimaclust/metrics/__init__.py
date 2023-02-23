@@ -1,1 +1,1 @@
-from src.metrics.autoregressive import *
+from arimaclust.metrics.autoregressive import *

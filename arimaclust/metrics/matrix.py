@@ -1,10 +1,15 @@
+from functools import partial
 import numpy as np
 import importlib
 import statsmodels.api as sm
+from sklearn.metrics import pairwise_distances
+from arimaclust.utils import timeit
 
 
+# TODO refactor according to https://github.com/alkaline-ml/pmdarima/issues/120
+@timeit
 def compute_metric(X, metric_name, **kwargs):
-    metrics_module = importlib.import_module('src.metrics')
+    metrics_module = importlib.import_module('arimaclust.metrics')
     metric = getattr(metrics_module, metric_name)
     n = len(X)
     out_mat = np.zeros((n, n))
@@ -13,6 +18,14 @@ def compute_metric(X, metric_name, **kwargs):
         for j in range(i):
             out_mat[i][j] = metric(X[i], X[j], **kwargs)
     return out_mat + out_mat.T
+
+
+@timeit
+def sklearn_pair(X, metric_name, **kwargs):
+    metrics_module = importlib.import_module('arimaclust.metrics')
+    metric = partial(getattr(metrics_module, metric_name), **kwargs)
+
+    return pairwise_distances(X=X, metric=metric, n_jobs=-1)
 
 
 if __name__ == "__main__":
@@ -45,5 +58,5 @@ if __name__ == "__main__":
     k_process = sm.tsa.ArmaProcess(ar, ma)
     k = k_process.generate_sample(nsample=t)
 
-    m = compute_metric(X=[x, y, z, k], metric_name='piccolo_dist', x_max_orders=(2, 2), y_max_orders=(2, 2), tau=100)
-    print(m)
+    m = compute_metric(X=[x] * 100, metric_name='piccolo', x_max_orders=(2, 2), y_max_orders=(2, 2), tau=100)
+    m = sklearn_pair(X=[x] * 100, metric_name='piccolo', x_max_orders=(2, 2), y_max_orders=(2, 2), tau=100)
