@@ -5,48 +5,39 @@ import statsmodels.api as sm
 import matplotlib.pyplot as plt
 
 
-def arma2ar(model: Union[Tuple, pm.arima.arima.ARIMA], tau: int = 100):
+def arma2ar(model: Union[Tuple, pm.arima.arima.ARIMA, sm.tsa.ArmaProcess], tau: int = 100):
     if isinstance(model, tuple):
         if len(model) != 2:
             raise ValueError('Please provide tuple of AR and MA params')
         ar_params, ma_params = model
         ar_params = np.array(ar_params)
         ma_params = np.array(ma_params)
+        ar = np.r_[1, -ar_params]  # add zero-lag and negate
+        ma = np.r_[1, ma_params]  # add zero-lag
+        process = sm.tsa.ArmaProcess(ar, ma)
 
     elif isinstance(model, pm.arima.arima.ARIMA):
         ar_params, ma_params = model.arparams(), model.maparams()
+        ar = np.r_[1, -ar_params]  # add zero-lag and negate
+        ma = np.r_[1, ma_params]  # add zero-lag
+        process = sm.tsa.ArmaProcess(ar, ma)
+    elif isinstance(model, sm.tsa.ArmaProcess):
+        process = model
     else:
-        raise ValueError('Argument model must be tuple of parameters or pmdarima ARIMA model')
+        raise ValueError('Argument model must be tuple of parameters, pmdarima ARIMA, or sm.ARMA model')
 
-    ar = np.r_[1, -ar_params]  # add zero-lag and negate
-    ma = np.r_[1, ma_params]  # add zero-lag
-    process = sm.tsa.ArmaProcess(ar, ma)
     if not process.isinvertible:
         raise ValueError('Provided model is not invertible')
     return process.arma2ar(lags=tau)
 
 
-def piccolo(x, y, x_max_orders, y_max_orders, tau=100, **kwargs):
-    if 'information_criterion' not in kwargs:
-        information_criterion = 'bic'
-    else:
-        information_criterion = kwargs['information_criterion']
+def piccolo(x_process, y_process, tau=100, **kwargs):
+    if (not isinstance(x_process, sm.tsa.ArmaProcess)) and (not isinstance(y_process, sm.tsa.ArmaProcess)):
+        raise ValueError('Unknown types for processes')
 
-    x_max_p, x_max_q = x_max_orders
-    y_max_p, y_max_q = y_max_orders
+    x_ar = arma2ar(model=x_process, tau=tau)
+    y_ar = arma2ar(model=y_process, tau=tau)
 
-    x_model = pm.auto_arima(x, start_p=1, start_q=1, max_p=x_max_p, max_q=x_max_q, d=0,
-                            error_action='ignore', stepwise=True,
-                            suppress_warnings=True,
-                            seasonal=False, information_criterion=information_criterion)
-
-    x_ar = arma2ar(model=x_model, tau=tau)
-
-    y_model = pm.auto_arima(y, start_p=1, start_q=1, max_p=y_max_p, max_q=y_max_q,
-                            error_action='ignore', d=0, stepwise=True,
-                            suppress_warnings=True,
-                            seasonal=False, information_criterion=information_criterion)
-    y_ar = arma2ar(model=y_model, tau=tau)
     return np.linalg.norm(x_ar - y_ar)
 
 

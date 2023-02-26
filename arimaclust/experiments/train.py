@@ -1,18 +1,18 @@
 import matplotlib.pyplot as plt
 from sklearn.metrics import adjusted_mutual_info_score
 from arimaclust.data.generate import generate_clusters
-from arimaclust.data.examples import EXAMPLE1
+from arimaclust.data.examples import EXAMPLE1, EXAMPLE2, CLUSTER1
 from arimaclust.models.centroid import ConsistentARMAClustering
 
-N_SAMPLES = 20
-T_RANGE = [100, 200, 300]
+N_SAMPLES = 50
+T_RANGE = [200, 400, 600, 800, 1000]
 TAU = 100
 KAPPA = len(EXAMPLE1)
 
 scores = []
 for t in T_RANGE:
     print(f'================{t}===============', '\n')
-    X, Y = generate_clusters(params=EXAMPLE1, t_min=t, samples_per_cluster=N_SAMPLES)
+    X, Y = generate_clusters(params=CLUSTER1, t_min=t, samples_per_cluster=N_SAMPLES)
     model = ConsistentARMAClustering(k=KAPPA, metric='piccolo', tau=TAU, max_orders=(3, 3))
     model.fit(X=X)
     y_pred = model.labels_

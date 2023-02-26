@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.metrics import adjusted_mutual_info_score
-from arimaclust.metrics.matrix import compute_metric
+from arimaclust.metrics.matrix import dist_matrix_parallel
 from arimaclust.data.generate import generate_arma_sample
 
 
@@ -8,8 +8,7 @@ class ConsistentARMAClustering:
 
     def __init__(self, k, metric='piccolo', underlying_model='ARMA', tau=100, max_orders=(3, 3)):
         if metric == 'piccolo':
-            metric_args = {'x_max_orders': max_orders,
-                           'y_max_orders': max_orders,
+            metric_args = {'max_orders': max_orders,
                            'tau': tau
                            }
         else:
@@ -31,7 +30,7 @@ class ConsistentARMAClustering:
 
     def compute_distance_matrix(self, X):
         self._check_array(X=X)
-        self.D = compute_metric(X=X, metric_name=self.metric, **self.metric_args)
+        self.D = dist_matrix_parallel(X=X, metric_name=self.metric, **self.metric_args)
 
     def d(self, x, y):
         return compute_metric(X=[x, y], metric_name=self.metric, **self.metric_args)
@@ -91,4 +90,3 @@ if __name__ == '__main__':
     clustering_model = ConsistentARMAClustering(k=kappa)
     clustering_model.fit(X)
     print(clustering_model.labels_)
-

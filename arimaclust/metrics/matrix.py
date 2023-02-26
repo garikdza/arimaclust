@@ -1,4 +1,5 @@
 from functools import partial
+from arimaclust.autoarima.estimation import estimate_processes
 import numpy as np
 import importlib
 import statsmodels.api as sm
@@ -26,6 +27,24 @@ def sklearn_pair(X, metric_name, **kwargs):
     metric = partial(getattr(metrics_module, metric_name), **kwargs)
 
     return pairwise_distances(X=X, metric=metric, n_jobs=-1)
+
+
+@timeit
+def dist_matrix_parallel(X, metric_name, **kwargs):
+    # get metric func
+    metrics_module = importlib.import_module('arimaclust.metrics')
+    metric = partial(getattr(metrics_module, metric_name), **kwargs)
+
+    # fit processes
+    processes = estimate_processes(X=X, **kwargs)
+
+    n = len(X)
+    out_mat = np.zeros((n, n))
+
+    for i in range(n):
+        for j in range(i):
+            out_mat[i][j] = metric(processes[i], processes[j], **kwargs)
+    return out_mat + out_mat.T
 
 
 if __name__ == "__main__":
@@ -58,5 +77,6 @@ if __name__ == "__main__":
     k_process = sm.tsa.ArmaProcess(ar, ma)
     k = k_process.generate_sample(nsample=t)
 
-    m = compute_metric(X=[x] * 100, metric_name='piccolo', x_max_orders=(2, 2), y_max_orders=(2, 2), tau=100)
-    m = sklearn_pair(X=[x] * 100, metric_name='piccolo', x_max_orders=(2, 2), y_max_orders=(2, 2), tau=100)
+    # m = compute_metric(X=[x] * 100, metric_name='piccolo', x_max_orders=(2, 2), y_max_orders=(2, 2), tau=100)
+    # m = sklearn_pair(X=[x] * 100, metric_name='piccolo', x_max_orders=(2, 2), y_max_orders=(2, 2), tau=100)
+    m = dist_matrix_parallel(X=[x, y, z, k], metric_name='piccolo', max_orders=(2, 2), tau=100)

@@ -3,34 +3,7 @@ import statsmodels.api as sm
 import numpy as np
 from numpy.typing import ArrayLike
 from arimaclust.data.examples import EXAMPLE1
-
-
-def get_arma_process(ar_params: ArrayLike, ma_params: ArrayLike) -> sm.tsa.ArmaProcess:
-    """
-    Get ARMA process from given parameters
-
-    Parameters
-    ----------
-    ar_params : ArrayLike
-        autoregressive parameters
-    ma_params : ArrayLike
-        moving average parameters
-
-    Returns
-    -------
-    process : sm.tsa.ArmaProcess
-        output process
-    """
-    if isinstance(ar_params, list):
-        ar_params = np.array(ar_params)
-    if isinstance(ma_params, list):
-        ar_params = np.array(ma_params)
-
-    ar = np.r_[1, -ar_params]  # add zero-lag and negate
-    ma = np.r_[1, ma_params]  # add zero-lag
-    # create model
-    process = sm.tsa.ArmaProcess(ar, ma)
-    return process
+from arimaclust.autoarima.estimation import to_arma_process, estimate_processes
 
 
 def generate_arma_sample(ar_params: ArrayLike, ma_params: ArrayLike, t: int) -> np.ndarray:
@@ -50,7 +23,7 @@ def generate_arma_sample(ar_params: ArrayLike, ma_params: ArrayLike, t: int) -> 
         time series
     """
     # get arma process
-    x_process = get_arma_process(ar_params, ma_params)
+    x_process = to_arma_process(ar_params, ma_params)
     # generate sample
     x = x_process.generate_sample(nsample=t)
     return x
