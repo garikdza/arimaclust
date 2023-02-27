@@ -62,7 +62,7 @@ class ConsistentARMAClustering:
                 d_from_centroids.append(self.D[i, c_k])
 
             labels.append(np.argmin(d_from_centroids))
-        self.labels_ = labels
+        self.labels_ = np.array(labels)
         return self
 
 
