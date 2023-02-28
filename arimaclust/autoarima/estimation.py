@@ -42,7 +42,7 @@ def fit_arma(x: np.ndarray, max_orders: Tuple[int, int], **kwargs):
 
     max_p, max_q = max_orders
 
-    x_pm_model = pm.auto_arima(x, start_p=1, start_q=1, max_p=max_p, max_q=max_q, d=0,
+    x_pm_model = pm.auto_arima(x, start_p=1, start_q=1, max_p=max_p, max_q=max_q, d_max=2,
                                error_action='ignore', stepwise=True,
                                suppress_warnings=True,
                                seasonal=False, information_criterion=information_criterion)
