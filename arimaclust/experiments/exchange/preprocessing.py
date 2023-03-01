@@ -17,7 +17,7 @@ def get_currency_series(df, symb):
 
 def concat_datas(jsons_root):
     # concat downloaded json files
-    paths = sorted([os.path.join(jsons_root,path) for path in os.listdir(jsons_root)],reverse=True)
+    paths = sorted([os.path.join(jsons_root, path) for path in os.listdir(jsons_root)], reverse=True)
 
     df_ = pd.read_json(paths[0])
     currencies = df_['rates'].apply(lambda x: list(x.keys()))
@@ -52,6 +52,6 @@ def concat_datas(jsons_root):
 
 if __name__ == '__main__':
     roots = 'data/usd'
-    saving_path = 'data/final_usd.csv'
+    saving_path = 'data/final_usd_2016_2018.csv'
     final_data = concat_datas(jsons_root=roots)
     final_data.to_csv(saving_path)
