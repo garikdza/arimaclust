@@ -51,7 +51,7 @@ def concat_datas(jsons_root):
 
 
 if __name__ == '__main__':
-    roots = 'data/usd'
+    roots = 'data/usd_2016_2018'
     saving_path = 'data/final_usd_2016_2018.csv'
     final_data = concat_datas(jsons_root=roots)
     final_data.to_csv(saving_path)
