@@ -18,7 +18,7 @@ class ClusteringModel:
 
     def get_distance_matrix(self, X, metric, **kwargs):
         if metric == 'precomputed':
-            # check symeric
+            # check symmetric
             self._check_distance_matrix(X=X)
             self.dist_matrix = X
         else:

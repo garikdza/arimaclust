@@ -23,7 +23,7 @@ class NearestNeighbourModel:
         self.alpha = alpha
         self.underlying_model = underlying_model
         self.tau = tau
-        self.labels = None
+        self.labels_ = None
         self.D = None
         self.max_orders = max_orders
 
@@ -81,11 +81,9 @@ class NearestNeighbourModel:
                     single = False
             if single:
                 clusters.append({i})
-        print(clusters)
         labels = np.ones(n)*(-1)
         for i, cluster in enumerate(clusters):
             labels[list(cluster)] = i
-        print(labels)
         self.labels_ = labels
 
 

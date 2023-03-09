@@ -4,12 +4,16 @@ from arimaclust.metrics.matrix import dist_matrix_parallel
 from arimaclust.data.generate import generate_arma_sample
 
 
+# todo inherit from ClusteringModel
 class ConsistentARMAClustering:
 
-    def __init__(self, k, metric='piccolo', underlying_model='ARMA', tau=100, max_orders=(3, 3)):
+    def __init__(self, k, metric='piccolo', underlying_model='ARMA', tau=100, max_orders=(3, 3), d=0):
         if metric == 'piccolo':
+            if d == 'auto':
+                d = None
             metric_args = {'max_orders': max_orders,
-                           'tau': tau
+                           'tau': tau,
+                           'd': d
                            }
         else:
             raise ValueError
@@ -20,7 +24,7 @@ class ConsistentARMAClustering:
         self.k = k
         self.underlying_model = underlying_model
         self.tau = tau
-        self.labels = None
+        self.labels_ = None
         self.D = None
         self.max_orders = max_orders
 
