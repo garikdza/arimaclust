@@ -1,44 +1,19 @@
 from functools import partial
-from arimaclust.autoarima.estimation import estimate_processes
 import numpy as np
 import importlib
 import statsmodels.api as sm
-from sklearn.metrics import pairwise_distances
 from arimaclust.utils import timeit
 
 
-# TODO refactor according to https://github.com/alkaline-ml/pmdarima/issues/120
 @timeit
-def compute_metric(X, metric_name, **kwargs):
-    metrics_module = importlib.import_module('arimaclust.metrics')
-    metric = getattr(metrics_module, metric_name)
-    n = len(X)
-    out_mat = np.zeros((n, n))
+def dist_matrix_parallel(processes, metric_name, **kwargs):
+    # X here is a list of processes
 
-    for i in range(n):
-        for j in range(i):
-            out_mat[i][j] = metric(X[i], X[j], **kwargs)
-    return out_mat + out_mat.T
-
-
-@timeit
-def sklearn_pair(X, metric_name, **kwargs):
-    metrics_module = importlib.import_module('arimaclust.metrics')
-    metric = partial(getattr(metrics_module, metric_name), **kwargs)
-
-    return pairwise_distances(X=X, metric=metric, n_jobs=-1)
-
-
-@timeit
-def dist_matrix_parallel(X, metric_name, **kwargs):
     # get metric func
     metrics_module = importlib.import_module('arimaclust.metrics')
     metric = partial(getattr(metrics_module, metric_name), **kwargs)
 
-    # fit processes
-    processes = estimate_processes(X=X, **kwargs)
-
-    n = len(X)
+    n = len(processes)
     out_mat = np.zeros((n, n))
 
     for i in range(n):

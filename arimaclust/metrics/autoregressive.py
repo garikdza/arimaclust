@@ -31,7 +31,7 @@ def arma2ar(model: Union[Tuple, pm.arima.arima.ARIMA, sm.tsa.ArmaProcess], tau: 
     return process.arma2ar(lags=tau)
 
 
-def piccolo(x_process, y_process, tau=100, **kwargs):
+def piccolo(x_process, y_process, tau=100):
     if (not isinstance(x_process, sm.tsa.ArmaProcess)) and (not isinstance(y_process, sm.tsa.ArmaProcess)):
         raise ValueError('Unknown types for processes')
 
@@ -41,11 +41,9 @@ def piccolo(x_process, y_process, tau=100, **kwargs):
     return np.linalg.norm(x_ar - y_ar)
 
 
-
-
 if __name__ == '__main__':
     pi1 = arma2ar(model=([0.3, -0.2], [-0.5]), tau=10)
-    pi2 = arma2ar(model=([0.7, -0.4,0.1], [0.5,-0.2]), tau=10)
+    pi2 = arma2ar(model=([0.7, -0.4, 0.1], [0.5, -0.2]), tau=10)
     print(np.linalg.norm(pi1 - pi2))
     # pi1 = ar_inf_coeffs(phi=[0.3, -0.2], theta=[-0.5], tau=100)
     # pi2 = ar_inf_coeffs(phi=[0.25, -0.15], theta=[-0.5], tau=100)

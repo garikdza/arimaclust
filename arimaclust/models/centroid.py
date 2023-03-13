@@ -2,49 +2,32 @@ import numpy as np
 from sklearn.metrics import adjusted_mutual_info_score
 from arimaclust.metrics.matrix import dist_matrix_parallel
 from arimaclust.data.generate import generate_arma_sample
+from arimaclust.models.base import ClusteringModel
 
 
 # todo inherit from ClusteringModel
-class ConsistentARMAClustering:
+class ConsistentARMAClustering(ClusteringModel):
 
-    def __init__(self, k, metric='piccolo', underlying_model='ARMA', tau=100, max_orders=(3, 3), d=0):
-        if metric == 'piccolo':
-            if d == 'auto':
-                d = None
-            metric_args = {'max_orders': max_orders,
-                           'tau': tau,
-                           'd': d
-                           }
-        else:
-            raise ValueError
-        if underlying_model != 'ARMA':
-            raise ValueError
+    def __init__(self, k, metric='piccolo', underlying_process='ARMA', process_args=None, metric_args=None):
+        super().__init__(metric=metric, underlying_process=underlying_process, metric_args=metric_args,
+                         process_args=process_args)
+
         self.metric = metric
-        self.metric_args = metric_args
         self.k = k
-        self.underlying_model = underlying_model
-        self.tau = tau
-        self.labels_ = None
-        self.D = None
-        self.max_orders = max_orders
+        self.underlying_process = underlying_process
+        if metric_args is None:
+            self.metric_args = {'tau': 10
+                                }
+        if process_args is None:
+            self.process_args = {'max_p': 3,
+                                 'max_q': 3,
+                                 'd': 0
+                                 }
 
-    @staticmethod
-    def _check_array(X):
-        pass
-
-    def compute_distance_matrix(self, X):
-        self._check_array(X=X)
-        self.D = dist_matrix_parallel(X=X, metric_name=self.metric, **self.metric_args)
-
-    def d(self, x, y):
-        return compute_metric(X=[x, y], metric_name=self.metric, **self.metric_args)
-
-    def arma_to_ar(self, x):
-        pass
-
-    def fit(self, X):
-
-        self.compute_distance_matrix(X=X)
+    def fit(self, X, **kwargs):
+        self.dist_matrix = self.get_distance_matrix(X=X, metric=self.metric, underlying_process=self.underlying_process,
+                                                    metric_args=self.metric_args,
+                                                    process_args=self.process_args)
 
         c_inds = [0]
         for k in range(1, self.k):
@@ -52,7 +35,7 @@ class ConsistentARMAClustering:
             for i, x in enumerate(X):
                 d_from_centroids = []
                 for j in range(k):
-                    d_from_centroids.append(self.D[i, c_inds[j]])
+                    d_from_centroids.append(self.dist_matrix[i, c_inds[j]])
                 d_for_sample.append(np.min(d_from_centroids).item())
 
             c_k = np.argmax(d_for_sample)
@@ -63,7 +46,7 @@ class ConsistentARMAClustering:
         for i, x in enumerate(X):
             d_from_centroids = []
             for c_k in c_inds:
-                d_from_centroids.append(self.D[i, c_k])
+                d_from_centroids.append(self.dist_matrix[i, c_k])
 
             labels.append(np.argmin(d_from_centroids))
         self.labels_ = np.array(labels)
@@ -91,6 +74,8 @@ if __name__ == '__main__':
 
     print(len(X))
 
-    clustering_model = ConsistentARMAClustering(k=kappa)
+    clustering_model = ConsistentARMAClustering(k=kappa, process_args={'d': None, 'max_p': 3, 'max_q': 2},
+                                                metric_args={'tau': 10})
     clustering_model.fit(X)
     print(clustering_model.labels_)
+    print(clustering_model.processes_)
