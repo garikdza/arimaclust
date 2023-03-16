@@ -4,6 +4,7 @@ import numpy as np
 import statsmodels.api as sm
 from joblib import Parallel, delayed
 from numpy.typing import ArrayLike
+from arimaclust.utils import timeit
 
 
 def to_arma_process(ar_params: ArrayLike, ma_params: ArrayLike) -> sm.tsa.ArmaProcess:
@@ -34,39 +35,18 @@ def to_arma_process(ar_params: ArrayLike, ma_params: ArrayLike) -> sm.tsa.ArmaPr
     return process
 
 
-# def fit_arma(x: np.ndarray, max_orders: Tuple[int, int], **kwargs):
-#     if 'information_criterion' not in kwargs:
-#         information_criterion = 'bic'
-#     else:
-#         information_criterion = kwargs['information_criterion']
-#
-#     max_p, max_q = max_orders
-#
-#     d = kwargs.get('d')
-#
-#     # x_pm_model = pm.auto_arima(x, start_p=1, start_q=1, max_p=max_p, max_q=max_q, d=d, error_action='ignore',
-#     #                            stepwise=True,
-#     #                            suppress_warnings=True, seasonal=False, information_criterion=information_criterion)
-#     x_pm_model = pm.auto_arima(x, error_action='ignore',
-#                                stepwise=True,
-#                                d=0,
-#                                suppress_warnings=True)
-#     print(x_pm_model.summary())
-#     x_process = to_arma_process(ar_params=x_pm_model.arparams(), ma_params=x_pm_model.maparams())
-#     return x_process
 
 
 def fit_arma(x: np.ndarray, **kwargs):
     x_pm_model = pm.auto_arima(x, error_action='ignore',
                                stepwise=True,
                                suppress_warnings=True,
-                               trace=True,
                                **kwargs
                                )
     x_process = to_arma_process(ar_params=x_pm_model.arparams(), ma_params=x_pm_model.maparams())
     return x_process
 
-
+@timeit
 def estimate_processes(X: List[np.ndarray], underlying_process: str = 'ARMA', **kwargs):
     if 'n_workers' not in kwargs:
         n_workers = 8
