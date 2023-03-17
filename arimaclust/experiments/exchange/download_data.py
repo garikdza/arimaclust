@@ -39,8 +39,8 @@ def get_data(start, end, base, api_key, saving_root='data'):
 
 if __name__ == '__main__':
     dotenv.load_dotenv('.env')
-    end = datetime.datetime(year=2019, day=1, month=1)
-    start = datetime.datetime(year=2018, day=1, month=1)
+    start = datetime.datetime(year=2010, day=1, month=1)
+    end = datetime.datetime(year=2020, day=1, month=1)
     base = 'USD'
-    saving_path = 'data/usd_2018_2019/'
+    saving_path = 'data/usd_2010_2020/'
     get_data(start=start, end=end, saving_root=saving_path, base=base, api_key=os.getenv('API_KEY'))

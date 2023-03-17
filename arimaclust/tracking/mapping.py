@@ -4,7 +4,7 @@ from scipy.optimize import linear_sum_assignment
 
 def mapp_hungarian(labels1, labels2):
     # Define the number of clusters for each time period
-    n_c1, n_c2 = int(max(labels1)), int(max(labels2))
+    n_c1, n_c2 = int(max(labels1))+1, int(max(labels2))+1
     # Compute the confusion matrix between the two sets of labels
     confusion_matrix = np.zeros((n_c1, n_c2))
 
@@ -47,37 +47,38 @@ def min_weight_bipartite_matching(clustering_a, clustering_b):
     return result
 
 
-from arimaclust.data.examples import CLUSTER1
-from arimaclust.data.generate import generate_clusters
-from arimaclust.models.centroid import ConsistentARMAClustering
-from arimaclust.models.neighbours import  NearestNeighbourModel
+if __name__ == '__main__':
+    from arimaclust.data.examples import CLUSTER1
+    from arimaclust.data.generate import generate_clusters
+    from arimaclust.models.centroid import ConsistentARMAClustering
+    from arimaclust.models.neighbours import NearestNeighbourModel
 
-N_SAMPLES = 50
-T_RANGE = 400
-TAU = 10
-KAPPA = len(CLUSTER1)
-metric_args = {'tau': TAU}
-process_args = {'max_p': 3, 'max_q': 3, 'd': 0}
+    N_SAMPLES = 50
+    T_RANGE = 400
+    TAU = 10
+    KAPPA = len(CLUSTER1)
+    metric_args = {'tau': TAU}
+    process_args = {'max_p': 3, 'max_q': 3, 'd': 0}
 
-print(CLUSTER1)
+    print(CLUSTER1)
 
-scores = []
-X, Y = generate_clusters(params=CLUSTER1, t_min=T_RANGE, samples_per_cluster=N_SAMPLES)
+    scores = []
+    X, Y = generate_clusters(params=CLUSTER1, t_min=T_RANGE, samples_per_cluster=N_SAMPLES)
 
-X1 = [x[:200] for x in X]
-model = NearestNeighbourModel(alpha=0.1, metric='piccolo', metric_args=metric_args, process_args=process_args)
-model.fit(X=X1)
-y_pred1 = model.labels_
+    X1 = [x[:200] for x in X]
+    model = NearestNeighbourModel(alpha=0.1, metric='piccolo', metric_args=metric_args, process_args=process_args)
+    model.fit(X=X1)
+    y_pred1 = model.labels_
 
-X2 = [x[200:] for x in X]
+    X2 = [x[200:] for x in X]
 
-model = NearestNeighbourModel(alpha=0.1, metric='piccolo', metric_args=metric_args, process_args=process_args)
-model.fit(X=X2)
-y_pred2 = model.labels_
+    model = NearestNeighbourModel(alpha=0.1, metric='piccolo', metric_args=metric_args, process_args=process_args)
+    model.fit(X=X2)
+    y_pred2 = model.labels_
 
-match = mapp_hungarian(labels1=y_pred1, labels2=y_pred2)
+    match = mapp_hungarian(labels1=y_pred1, labels2=y_pred2)
 
-print(y_pred1)
-print(y_pred2)
+    print(y_pred1)
+    print(y_pred2)
 
-print(match)
+    print(match)

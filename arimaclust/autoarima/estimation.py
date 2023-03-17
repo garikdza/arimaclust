@@ -35,16 +35,16 @@ def to_arma_process(ar_params: ArrayLike, ma_params: ArrayLike) -> sm.tsa.ArmaPr
     return process
 
 
-
-
 def fit_arma(x: np.ndarray, **kwargs):
     x_pm_model = pm.auto_arima(x, error_action='ignore',
                                stepwise=True,
                                suppress_warnings=True,
+                               out_of_sample_size=10,
                                **kwargs
                                )
     x_process = to_arma_process(ar_params=x_pm_model.arparams(), ma_params=x_pm_model.maparams())
     return x_process
+
 
 @timeit
 def estimate_processes(X: List[np.ndarray], underlying_process: str = 'ARMA', **kwargs):
