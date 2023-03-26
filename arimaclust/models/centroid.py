@@ -5,7 +5,6 @@ from arimaclust.data.generate import generate_arma_sample
 from arimaclust.models.base import ClusteringModel
 
 
-# todo inherit from ClusteringModel
 class ConsistentARMAClustering(ClusteringModel):
 
     def __init__(self, k, metric='piccolo', underlying_process='ARMA', process_args=None, metric_args=None):
