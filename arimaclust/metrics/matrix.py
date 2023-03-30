@@ -1,14 +1,16 @@
+from typing import Union, List, Dict
 from functools import partial
 import numpy as np
 import importlib
+
+import pandas as pd
 import statsmodels.api as sm
 from arimaclust.utils import timeit
 
 
 @timeit
-def dist_matrix_parallel(processes, metric_name, **kwargs):
-    # X here is a list of processes
-
+def dist_matrix_parallel(processes: Union[List, Dict], metric_name: str, **kwargs):
+    # X here is a list of processes or dict
     # get metric func
     metrics_module = importlib.import_module('arimaclust.metrics')
     metric = partial(getattr(metrics_module, metric_name), **kwargs)
@@ -16,10 +18,17 @@ def dist_matrix_parallel(processes, metric_name, **kwargs):
     n = len(processes)
     out_mat = np.zeros((n, n))
 
+    data = processes
+    if isinstance(processes, dict):
+        data = list(processes.values())
+
     for i in range(n):
         for j in range(i):
-            out_mat[i][j] = metric(processes[i], processes[j], **kwargs)
-    return out_mat + out_mat.T
+            out_mat[i][j] = metric(data[i], data[j], **kwargs)
+    result = out_mat + out_mat.T
+    if isinstance(processes, dict):
+        result = pd.DataFrame(data=result, columns=list(processes.keys()))
+    return result
 
 
 if __name__ == "__main__":

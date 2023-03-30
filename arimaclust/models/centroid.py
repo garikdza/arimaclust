@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from sklearn.metrics import adjusted_mutual_info_score
 from arimaclust.metrics.matrix import dist_matrix_parallel
 from arimaclust.data.generate import generate_arma_sample
@@ -23,29 +24,36 @@ class ConsistentARMAClustering(ClusteringModel):
                                  'd': 0
                                  }
 
+    def check_neighbourhood(self, X, ind, alpha=0.2, n_neighbours=3):
+        dists = X[ind]
+        where, _ = np.where(dists < alpha)
+        return where.shape[0] >= n_neighbours
+
     def fit(self, X, **kwargs):
         self.dist_matrix = self.get_distance_matrix(X=X, metric=self.metric, underlying_process=self.underlying_process,
                                                     metric_args=self.metric_args,
                                                     process_args=self.process_args)
+        dm = self.dist_matrix
+        if isinstance(self.dist_matrix, pd.DataFrame):
+            dm = self.dist_matrix.values
 
-        c_inds = [0]
+        centroids = [0]
         for k in range(1, self.k):
             d_for_sample = []
             for i, x in enumerate(X):
                 d_from_centroids = []
                 for j in range(k):
-                    d_from_centroids.append(self.dist_matrix[i, c_inds[j]])
+                    d_from_centroids.append(dm[i, centroids[j]])
                 d_for_sample.append(np.min(d_from_centroids).item())
 
             c_k = np.argmax(d_for_sample)
-
-            c_inds.append(c_k)
+            centroids.append(c_k)
 
         labels = []
         for i, x in enumerate(X):
             d_from_centroids = []
-            for c_k in c_inds:
-                d_from_centroids.append(self.dist_matrix[i, c_k])
+            for c_k in centroids:
+                d_from_centroids.append(dm[i, c_k])
 
             labels.append(np.argmin(d_from_centroids))
         self.labels_ = np.array(labels)

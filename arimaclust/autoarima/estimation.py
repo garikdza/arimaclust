@@ -1,4 +1,5 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union
+import pandas as pd
 import pmdarima as pm
 import numpy as np
 import statsmodels.api as sm
@@ -46,7 +47,7 @@ def fit_arma(x: np.ndarray, **kwargs):
 
 
 @timeit
-def estimate_processes(X: List[np.ndarray], underlying_process: str = 'ARMA', **kwargs):
+def estimate_processes(X: Union[List[np.ndarray], pd.DataFrame], underlying_process: str = 'ARMA', **kwargs):
     if 'n_workers' not in kwargs:
         n_workers = 8
     else:
@@ -56,6 +57,12 @@ def estimate_processes(X: List[np.ndarray], underlying_process: str = 'ARMA', **
         fit_func = fit_arma
     else:
         raise NotImplementedError('Other underlying processes not implemented yet')
+    data = X
+    if isinstance(X, pd.DataFrame):
+        data = X.values
 
-    results = Parallel(n_jobs=n_workers)(delayed(fit_func)(x, **kwargs) for x in X)
+    results = Parallel(n_jobs=n_workers)(delayed(fit_func)(x, **kwargs) for x in data)
+    if isinstance(X, pd.DataFrame):
+        results = dict(zip(X.columns.tolist(), results))
+
     return results
