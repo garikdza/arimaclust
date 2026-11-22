@@ -4,10 +4,7 @@ import pandas as pd
 
 
 def get_key(d, key):
-    try:
-        return d[key]
-    except Exception as e:
-        return None
+    return d.get(key) if isinstance(d, dict) else None
 
 
 def get_currency_series(df, symb):

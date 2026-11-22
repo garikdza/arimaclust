@@ -1,10 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
+
+from arimaclust.autoarima.estimation import estimate_processes, to_arma_process
+from arimaclust.data.examples import EXAMPLE2
+from arimaclust.data.generate import generate_arma_sample
 from arimaclust.metrics.autoregressive import piccolo
 from arimaclust.metrics.matrix import dist_matrix_parallel
-from arimaclust.autoarima.estimation import estimate_processes
-from arimaclust.data.examples import EXAMPLE1,EXAMPLE2
-from arimaclust.data.generate import generate_arma_sample, to_arma_process
 
 t = 800
 estimation_args = {'max_p': 3,
@@ -25,7 +26,7 @@ dists = []
 tau_range = [2, 3, 5, 10, 15, 20, 25, 30, 35, 40]
 for tau in tau_range:
     dists_per_tau = []
-    for i in range(10):
+    for _i in range(10):
         x = generate_arma_sample(*params1, t=t)
         y = generate_arma_sample(*params2, t=t)
         processes = estimate_processes(X=[x, y], **estimation_args)
