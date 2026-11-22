@@ -1,10 +1,11 @@
+import datetime
 import os.path
+import pickle
 
 import numpy as np
 import pandas as pd
-import datetime
-import pickle
-from pmdarima.preprocessing import BoxCoxEndogTransformer, LogEndogTransformer
+from pmdarima.preprocessing import BoxCoxEndogTransformer
+
 from arimaclust.models.centroid import ConsistentARMAClustering
 from arimaclust.utils import get_equal_time_periods
 
@@ -71,7 +72,6 @@ def main(df, delta, process_args, metric_args, results_path, k, ws, bc, log, pct
         model_part = ConsistentARMAClustering(k=k, metric='piccolo',
                                               metric_args=metric_args, process_args=process_args)
         model_part.fit(X)
-        #
         np.save(f'{results_path}/labels_{current_start}.npy', model_part.labels_)
         model_part.dist_matrix.to_csv(f'{results_path}/matrix_{current_start}.csv')
         with open(f'{results_path}/cols_{current_start}', 'wb') as fp:

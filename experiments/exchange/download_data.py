@@ -1,8 +1,9 @@
-import requests
-import json
 import datetime
+import json
 import os
+
 import dotenv
+import requests
 
 
 def get_data(start, end, base, api_key, saving_root='data'):
@@ -18,7 +19,7 @@ def get_data(start, end, base, api_key, saving_root='data'):
     current_end = end
     n_years = end.year - start.year
 
-    for i in range(n_years):
+    for _i in range(n_years):
         current_start = datetime.datetime(year=current_end.year - 1, day=current_end.day, month=current_end.month)
         print(f'start download from {current_start} to {current_end}')
         url = f"https://api.apilayer.com/exchangerates_data/timeseries?" \
