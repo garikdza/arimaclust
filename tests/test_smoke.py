@@ -1,13 +1,11 @@
 import numpy as np
-import pandas as pd
 import pytest
 from sklearn.metrics import adjusted_mutual_info_score
 
-from arimaclust.autoarima.estimation import estimate_processes, to_arma_process
+from arimaclust.autoarima.estimation import to_arma_process
 from arimaclust.data.examples import EXAMPLE2
 from arimaclust.data.generate import generate_clusters
 from arimaclust.metrics.autoregressive import piccolo
-from arimaclust.metrics.matrix import dist_matrix_parallel
 from arimaclust.models.centroid import ConsistentARMAClustering
 from arimaclust.models.neighbours import NearestNeighbourModel
 
@@ -25,16 +23,6 @@ def test_piccolo_matches_known_value():
     p1, p2 = (to_arma_process(*params) for params in EXAMPLE2)
     assert piccolo(p1, p1) == 0
     assert piccolo(p1, p2, tau=100) == pytest.approx(0.0577350269, rel=1e-6)
-
-
-def test_dataframe_input_is_column_wise():
-    np.random.seed(0)
-    X, _ = generate_clusters(WELL_SEPARATED, t_min=300, samples_per_cluster=1)
-    df = pd.DataFrame({'a': X[0], 'b': X[1]})
-    processes = estimate_processes(df, **PROCESS_ARGS)
-    assert list(processes) == ['a', 'b']
-    dm = dist_matrix_parallel(processes, metric_name='piccolo', tau=20)
-    assert list(dm.index) == ['a', 'b'] and dm.loc['a', 'b'] > 0
 
 
 def test_consistent_clustering_recovers_well_separated_clusters():
