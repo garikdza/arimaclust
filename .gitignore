@@ -136,3 +136,6 @@ arimaclust/.idea/
 experiments/exchange/data/
 experiments/exchange/result*/
 experiments/**/*.npy
+experiments/**/*.json
+experiments/**/*.csv
+!experiments/exchange/codes.csv
