@@ -10,7 +10,6 @@ from arimaclust.metrics.autoregressive import piccolo
 from arimaclust.metrics.matrix import dist_matrix_parallel
 from arimaclust.models.centroid import ConsistentARMAClustering
 from arimaclust.models.neighbours import NearestNeighbourModel
-from arimaclust.tracking.mapping import mapp_hungarian
 
 PROCESS_ARGS = {'max_p': 2, 'max_q': 2, 'd': 0, 'n_workers': 1}
 WELL_SEPARATED = [([0.8], []), ([-0.6], [0.3])]
@@ -51,7 +50,3 @@ def test_nearest_neighbour_is_transitive_on_precomputed():
     labels = NearestNeighbourModel(alpha=1.5, metric='precomputed').fit_predict(d)
     assert labels[0] == labels[1] == labels[2] != labels[3]
 
-
-def test_hungarian_mapping_handles_permuted_labels():
-    rows, cols = mapp_hungarian(np.array([0, 0, 1, 1, 2]), np.array([2, 2, 0, 0, 1]))
-    assert dict(zip(rows, cols, strict=False)) == {0: 2, 1: 0, 2: 1}

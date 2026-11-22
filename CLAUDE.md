@@ -17,7 +17,7 @@ The project is managed with uv (`pyproject.toml`, hatchling backend).
 
 ## Architecture
 
-The pipeline is `estimate → distance matrix → cluster → (track)`:
+The pipeline is `estimate → distance matrix → cluster`:
 
 - `autoarima/estimation.py`: `estimate_processes(X, n_workers=8, **process_args)` runs `pmdarima.auto_arima` on each series in parallel (joblib) and returns each fit as a statsmodels `ArmaProcess`. It selects orders by **BIC by default**, which the consistency theory requires; AIC is not consistent.
   - A list or 2D-array input gives a list of processes. A `DataFrame` input is handled column by column, with NaNs dropped, and gives a `{column: process}` dict.
@@ -28,7 +28,6 @@ The pipeline is `estimate → distance matrix → cluster → (track)`:
 - `models/base.py`: `ClusteringModel` holds the defaults (`tau=10`; `max_p=max_q=3`, `d=0`). It fills `processes_`, `dist_matrix` and `labels_`, and provides `fit_predict`. With `metric='precomputed'`, `X` is taken to be a ready distance matrix.
   - `centroid.ConsistentARMAClustering(k)` starts farthest-point selection at sample 0, then assigns each sample to its nearest centre. This is the algorithm with the consistency proof.
   - `neighbours.NearestNeighbourModel(alpha)` builds the graph of pairs with distance ≤ `alpha` and returns its connected components as clusters.
-- `tracking/mapping.py`: `mapp_hungarian` matches clusters between two labelings, for example consecutive time windows.
 - `data/`: synthetic ARMA cluster generators, with parameter sets in `examples.py` stored as `(ar_params, ma_params)` tuples.
 
 Exchange-rate data (apilayer) must never be committed; `.gitignore` blocks data and result files under `experiments/`.
