@@ -11,7 +11,7 @@ dependencies = [
     "numpy",
     "pandas",
     "scipy",
-    "scikit-learn",
+    "scikit-learn>=1.6",
     "statsmodels",
     "pmdarima",
     "joblib",
