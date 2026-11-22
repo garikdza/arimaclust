@@ -10,7 +10,7 @@ Consistent model-based clustering of ARIMA time series. Each series gets an auto
 
 The project is managed with uv (`pyproject.toml`, hatchling backend).
 
-- `uv sync`: install the library plus the dev tools (pytest, ruff). Add `--extra experiments` for matplotlib, jupyter, requests, dotenv and lxml.
+- `uv sync`: install the library plus the dev tools (pytest, ruff).
 - `uv run pytest`: run the tests. For a single test use `uv run pytest tests/test_smoke.py::test_piccolo_matches_known_value`.
 - `uv run ruff check .`: lint (rules E, F, I, UP and B, line length 120, notebooks excluded).
 - Nothing here needs a GPU. Prefix Python runs with `CUDA_VISIBLE_DEVICES=""`, as the global GPU rule requires.
@@ -31,7 +31,4 @@ The pipeline is `estimate → distance matrix → cluster → (track)`:
 - `tracking/mapping.py`: `mapp_hungarian` matches clusters between two labelings, for example consecutive time windows.
 - `data/`: synthetic ARMA cluster generators, with parameter sets in `examples.py` stored as `(ar_params, ma_params)` tuples.
 
-`experiments/` sits outside the package and holds the original research experiments.
-- The scripts use paths relative to their own folder, so run them from there.
-- The exchange-rate data is gitignored and must not be committed (apilayer terms). Fetch it with `download_data.py`, which needs `API_KEY` in a local `.env`.
-- The notebooks are kept as a record of the 2023 work. They use `sys.path` hacks and an older API, so don't treat them as current usage.
+Exchange-rate data (apilayer) must never be committed; `.gitignore` blocks data and result files under `experiments/`.

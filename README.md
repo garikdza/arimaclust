@@ -12,8 +12,7 @@ the maximum orders and the number of clusters are known, this procedure is weakl
 ## Install
 
 ```bash
-uv sync                      # library + dev tools
-uv sync --extra experiments  # + matplotlib, jupyter, etc. for experiments/
+uv sync
 ```
 
 ## Quickstart
@@ -30,12 +29,6 @@ model = ConsistentARMAClustering(k=len(CLUSTER1),
 model.labels_       # cluster per series
 model.dist_matrix   # pairwise Piccolo distances; usable with any precomputed-metric clusterer
 ```
-
-## Experiments
-
-- `experiments/synthetic/`: clustering synthetic ARMA clusters as the series length grows.
-- `experiments/exchange/`: dynamic clustering of the foreign exchange market. Fetch the rates with
-  `download_data.py`, which needs an apilayer `API_KEY` in a local `.env`.
 
 ## Citation
 

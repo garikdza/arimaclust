@@ -17,15 +17,6 @@ dependencies = [
     "joblib",
 ]
 
-[project.optional-dependencies]
-experiments = [
-    "matplotlib",
-    "requests",
-    "python-dotenv",
-    "lxml",
-    "jupyter",
-]
-
 [dependency-groups]
 dev = [
     "pytest",
