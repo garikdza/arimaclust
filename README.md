@@ -18,17 +18,22 @@ uv sync
 ## Quickstart
 
 ```python
+from arimaclust import ARMADistance, ConsistentClustering
 from arimaclust.data.examples import CLUSTER1
 from arimaclust.data.generate import generate_clusters
-from arimaclust.models.centroid import ConsistentARMAClustering
 
 X, y = generate_clusters(params=CLUSTER1, t_min=500, samples_per_cluster=20)
-model = ConsistentARMAClustering(k=len(CLUSTER1),
-                                 process_args={'max_p': 3, 'max_q': 3, 'd': 0},
-                                 metric_args={'tau': 10}).fit(X)
-model.labels_       # cluster per series
-model.dist_matrix   # pairwise Piccolo distances; usable with any precomputed-metric clusterer
+model = ConsistentClustering(n_clusters=len(CLUSTER1),
+                             distance=ARMADistance(max_p=3, max_q=3, d=0, tau=10, n_jobs=-1)).fit(X)
+model.labels_                  # cluster per series
+model.distance_.dist_matrix_   # pairwise Piccolo distances
 ```
+
+The public API is what `arimaclust` exports at the top level: `ARMADistance`, `ConsistentClustering` and
+`ThresholdClustering`, all scikit-learn estimators. Other modules, including the `arimaclust.data` generators used
+above, are internal. A series collection can be a list of 1-D arrays (lengths may differ), a 2D array with one series
+per row, or a DataFrame with one series per column (NaNs are dropped). Pass `distance='precomputed'` to
+cluster a ready distance matrix instead.
 
 ## Citation
 

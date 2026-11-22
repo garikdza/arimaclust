@@ -5,9 +5,22 @@ import pytest
 import statsmodels.api as sm
 from numpy.typing import ArrayLike
 from sklearn.base import clone
+from sklearn.metrics import adjusted_mutual_info_score
 
-from arimaclust.data.generate import generate_arma_sample
+import arimaclust
+from arimaclust.data.generate import generate_arma_sample, generate_clusters
 from arimaclust.distance import ARMADistance
+from arimaclust.models.centroid import ConsistentClustering
+from arimaclust.models.neighbours import ThresholdClustering
+
+WELL_SEPARATED = [([0.8], []), ([-0.6], [0.3])]
+
+
+def test_top_level_exports():
+    assert sorted(arimaclust.__all__) == ['ARMADistance', 'ConsistentClustering', 'ThresholdClustering']
+    assert arimaclust.ARMADistance is ARMADistance
+    assert arimaclust.ConsistentClustering is ConsistentClustering
+    assert arimaclust.ThresholdClustering is ThresholdClustering
 
 
 def _three_series() -> list[np.ndarray]:
@@ -117,3 +130,61 @@ def test_non_invertible_fit_names_series(monkeypatch: pytest.MonkeyPatch, X: lis
 def test_bad_series_input_raises(X: ArrayLike, match: str):
     with pytest.raises(ValueError, match=match):
         ARMADistance().fit(X)
+
+
+def test_consistent_clustering_farthest_point_on_hand_matrix():
+    # start at 0; 3 is farthest (11); nearest-centre distances are then (1, 1, 5.2) so 4 comes next
+    pos = np.array([0, 1, 10, 11, 5.2])
+    D = np.abs(pos[:, None] - pos[None, :])
+    model = ConsistentClustering(n_clusters=3, distance='precomputed').fit(D)
+    np.testing.assert_array_equal(model.centers_, [0, 3, 4])
+    np.testing.assert_array_equal(model.labels_, [0, 0, 1, 1, 2])
+
+
+def test_threshold_clustering_links_chains_on_precomputed():
+    # 0-1 and 1-2 are close, 3 is far: one chain cluster plus a singleton
+    d = np.array([[0, 1, 5, 9], [1, 0, 1, 9], [5, 1, 0, 9], [9, 9, 9, 0]], dtype=float)
+    labels = ThresholdClustering(alpha=1.5, distance='precomputed').fit_predict(d)
+    assert labels[0] == labels[1] == labels[2] != labels[3]
+
+
+def test_consistent_clustering_recovers_well_separated_clusters():
+    np.random.seed(0)
+    X, y = generate_clusters(WELL_SEPARATED, t_min=500, samples_per_cluster=5)
+    model = ConsistentClustering(n_clusters=2, distance=ARMADistance(max_p=2, max_q=2, d=0, tau=20)).fit(X)
+    assert adjusted_mutual_info_score(y, model.labels_) == pytest.approx(1.0)
+    assert isinstance(model.distance_, ARMADistance)
+    assert model.distance_.dist_matrix_.shape == (10, 10)
+    assert len(model.distance_.processes_) == 10
+    assert not hasattr(model.distance, 'processes_')
+
+
+def test_default_distance_is_fitted_copy():
+    model = ConsistentClustering(n_clusters=2).fit(_three_series())
+    assert model.distance is None
+    assert model.distance_.get_params() == ARMADistance().get_params()
+    assert model.distance_.dist_matrix_.shape == (3, 3)
+    np.testing.assert_array_equal(model.labels_, [0, 0, 1])
+
+
+def test_nested_distance_params_are_settable():
+    model = ThresholdClustering(alpha=0.5, distance=ARMADistance(max_p=1, max_q=1))
+    params = model.get_params(deep=True)
+    assert {'distance__tau', 'distance__max_p', 'distance__max_q', 'distance__d', 'distance__n_jobs'} <= set(params)
+    model.set_params(distance__tau=5).fit(_three_series())
+    assert model.distance_.tau == 5
+
+
+@pytest.mark.parametrize(('model', 'X', 'match'), [
+    pytest.param(ConsistentClustering(distance='precomputed'), np.ones((3, 2)), 'square', id='c'),
+    pytest.param(ConsistentClustering(n_clusters=4, distance='precomputed'), np.zeros((3, 3)),
+                 'n_clusters=4.*n_samples=3', id='d'),
+    pytest.param(ConsistentClustering(n_clusters=0, distance='precomputed'), np.zeros((3, 3)),
+                 'n_clusters must be an integer', id='n_clusters=0'),
+    pytest.param(ThresholdClustering(distance='precomputed'), np.zeros((3, 3)), 'alpha', id='alpha=None'),
+    pytest.param(ThresholdClustering(alpha=1.0, distance='euclidean'), np.zeros((3, 3)), 'distance must be',
+                 id='distance=euclidean'),
+])
+def test_bad_clusterer_input_raises(model: ConsistentClustering | ThresholdClustering, X: np.ndarray, match: str):
+    with pytest.raises(ValueError, match=match):
+        model.fit(X)
