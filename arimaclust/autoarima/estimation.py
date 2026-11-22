@@ -1,10 +1,10 @@
-from typing import List, Tuple, Union
+import numpy as np
 import pandas as pd
 import pmdarima as pm
-import numpy as np
 import statsmodels.api as sm
 from joblib import Parallel, delayed
 from numpy.typing import ArrayLike
+
 from arimaclust.utils import timeit
 
 
@@ -24,45 +24,53 @@ def to_arma_process(ar_params: ArrayLike, ma_params: ArrayLike) -> sm.tsa.ArmaPr
     process : sm.tsa.ArmaProcess
         output process
     """
-    if isinstance(ar_params, list):
-        ar_params = np.array(ar_params)
-    if isinstance(ma_params, list):
-        ar_params = np.array(ma_params)
+    ar_params = np.asarray(ar_params, dtype=float)
+    ma_params = np.asarray(ma_params, dtype=float)
 
     ar = np.r_[1, -ar_params]  # add zero-lag and negate
     ma = np.r_[1, ma_params]  # add zero-lag
-    # create model
-    process = sm.tsa.ArmaProcess(ar, ma)
-    return process
+    return sm.tsa.ArmaProcess(ar, ma)
 
 
-def fit_arma(x: np.ndarray, **kwargs):
-    x_pm_model = pm.auto_arima(x, error_action='ignore',
-                               stepwise=True,
-                               suppress_warnings=True,
-                               **kwargs
-                               )
-    x_process = to_arma_process(ar_params=x_pm_model.arparams(), ma_params=x_pm_model.maparams())
-    return x_process
+def fit_arma(x: np.ndarray, information_criterion: str = 'bic', **kwargs) -> sm.tsa.ArmaProcess:
+    """
+    Select and fit an ARIMA model with ``pmdarima.auto_arima`` and return its ARMA part.
+
+    BIC is the default because consistent order selection (and hence the consistency
+    guarantees of the clustering algorithm) requires it; AIC is not consistent.
+    Remaining ``kwargs`` (``max_p``, ``max_q``, ``d``, ...) go to ``auto_arima``.
+    """
+    model = pm.auto_arima(x,
+                          information_criterion=information_criterion,
+                          error_action='ignore',
+                          stepwise=True,
+                          suppress_warnings=True,
+                          **kwargs)
+    return to_arma_process(ar_params=model.arparams(), ma_params=model.maparams())
 
 
 @timeit
-def estimate_processes(X: Union[List[np.ndarray], pd.DataFrame], underlying_process: str = 'ARMA', **kwargs):
-    if 'n_workers' not in kwargs:
-        n_workers = 8
-    else:
-        n_workers = kwargs['n_workers']
+def estimate_processes(X: list[np.ndarray] | pd.DataFrame,
+                       underlying_process: str = 'ARMA',
+                       n_workers: int = 8,
+                       **kwargs) -> list[sm.tsa.ArmaProcess] | dict[str, sm.tsa.ArmaProcess]:
+    """
+    Fit one process per series in parallel.
 
+    A list (or 2D array, one series per row) gives a list of processes.
+    A DataFrame is treated column-wise and gives ``{column: process}``.
+    """
     if underlying_process == 'ARMA':
         fit_func = fit_arma
     else:
         raise NotImplementedError('Other underlying processes not implemented yet')
-    data = X
+
     if isinstance(X, pd.DataFrame):
-        data = X.values
+        data = [X[col].dropna().values for col in X.columns]
+    else:
+        data = X
 
     results = Parallel(n_jobs=n_workers)(delayed(fit_func)(x, **kwargs) for x in data)
     if isinstance(X, pd.DataFrame):
-        results = dict(zip(X.columns.tolist(), results))
-
+        return dict(zip(X.columns.tolist(), results, strict=False))
     return results
