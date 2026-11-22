@@ -1,88 +1,34 @@
 import numpy as np
 import pandas as pd
-from sklearn.metrics import adjusted_mutual_info_score
-from arimaclust.metrics.matrix import dist_matrix_parallel
-from arimaclust.data.generate import generate_arma_sample
+
 from arimaclust.models.base import ClusteringModel
 
 
 class ConsistentARMAClustering(ClusteringModel):
+    """
+    Farthest-point initialisation followed by nearest-centre assignment, with a known
+    number of clusters ``k`` (Khaleghi et al., JMLR 2016, applied to the Piccolo distance;
+    weak consistency for ARMA processes: Adamyan, J. Contemp. Math. Anal. 2023).
+    """
 
     def __init__(self, k, metric='piccolo', underlying_process='ARMA', process_args=None, metric_args=None):
         super().__init__(metric=metric, underlying_process=underlying_process, metric_args=metric_args,
                          process_args=process_args)
-
-        self.metric = metric
         self.k = k
-        self.underlying_process = underlying_process
-        if metric_args is None:
-            self.metric_args = {'tau': 10
-                                }
-        if process_args is None:
-            self.process_args = {'max_p': 3,
-                                 'max_q': 3,
-                                 'd': 0
-                                 }
-
-    def check_neighbourhood(self, X, ind, alpha=0.2, n_neighbours=3):
-        dists = X[ind]
-        where, _ = np.where(dists < alpha)
-        return where.shape[0] >= n_neighbours
+        self.centroids_ = None
 
     def fit(self, X, **kwargs):
-        self.dist_matrix = self.get_distance_matrix(X=X, metric=self.metric, underlying_process=self.underlying_process,
-                                                    metric_args=self.metric_args,
-                                                    process_args=self.process_args)
-        dm = self.dist_matrix
-        if isinstance(self.dist_matrix, pd.DataFrame):
-            dm = self.dist_matrix.values
+        self.dist_matrix = self.get_distance_matrix(X)
+        dm = self.dist_matrix.values if isinstance(self.dist_matrix, pd.DataFrame) else np.asarray(self.dist_matrix)
+        n = dm.shape[0]
+        if self.k > n:
+            raise ValueError(f'k={self.k} is larger than the number of samples ({n})')
 
         centroids = [0]
-        for k in range(1, self.k):
-            d_for_sample = []
-            for i, x in enumerate(X):
-                d_from_centroids = []
-                for j in range(k):
-                    d_from_centroids.append(dm[i, centroids[j]])
-                d_for_sample.append(np.min(d_from_centroids).item())
+        for _ in range(1, self.k):
+            d_to_nearest_centroid = dm[:, centroids].min(axis=1)
+            centroids.append(int(np.argmax(d_to_nearest_centroid)))
 
-            c_k = np.argmax(d_for_sample)
-            centroids.append(c_k)
-
-        labels = []
-        for i, x in enumerate(X):
-            d_from_centroids = []
-            for c_k in centroids:
-                d_from_centroids.append(dm[i, c_k])
-
-            labels.append(np.argmin(d_from_centroids))
-        self.labels_ = np.array(labels)
+        self.centroids_ = np.array(centroids)
+        self.labels_ = dm[:, centroids].argmin(axis=1)
         return self
-
-
-if __name__ == '__main__':
-    kappa = 2
-
-    X = []
-
-    ar_params = np.array([0.3, -0.2])
-    ma_params = np.array([-0.5])
-
-    for i in range(5):
-        x = generate_arma_sample(ar_params=ar_params, ma_params=ma_params, t=100)
-        X.append(x)
-
-    ar_params = np.array([0.7, -0.4, 0.1])
-    ma_params = np.array([0.5, -0.2])
-
-    for i in range(5):
-        x = generate_arma_sample(ar_params=ar_params, ma_params=ma_params, t=100)
-        X.append(x)
-
-    print(len(X))
-
-    clustering_model = ConsistentARMAClustering(k=kappa, process_args={'d': None, 'max_p': 3, 'max_q': 2},
-                                                metric_args={'tau': 10})
-    clustering_model.fit(X)
-    print(clustering_model.labels_)
-    print(clustering_model.processes_)
