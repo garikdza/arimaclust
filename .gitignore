@@ -131,3 +131,8 @@ dmypy.json
 # pycharm
 *.idea/
 arimaclust/.idea/
+
+# experiment data (downloaded from the exchange-rates API, not redistributable) and outputs
+experiments/exchange/data/
+experiments/exchange/result*/
+experiments/**/*.npy
