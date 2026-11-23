@@ -144,3 +144,6 @@ experiments/**/*.csv
 examples/figures/*
 !examples/figures/accuracy_vs_length.png
 !examples/figures/accuracy_vs_delta.png
+
+# AGENTS.md is generated locally from CLAUDE.md and not tracked
+AGENTS.md
