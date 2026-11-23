@@ -1,34 +1,72 @@
+import numbers
+
 import numpy as np
 import pandas as pd
+from numpy.typing import ArrayLike
+from sklearn.base import BaseEstimator, ClusterMixin
 
-from arimaclust.models.base import ClusteringModel
+from arimaclust.distance import ARMADistance
+from arimaclust.models.distance_input import DistanceInputMixin
 
 
-class ConsistentARMAClustering(ClusteringModel):
+class ConsistentClustering(DistanceInputMixin, ClusterMixin, BaseEstimator):
     """
     Farthest-point initialisation followed by nearest-centre assignment, with a known
-    number of clusters ``k`` (Khaleghi et al., JMLR 2016, applied to the Piccolo distance;
+    number of clusters (Khaleghi et al., JMLR 2016, applied to the Piccolo distance;
     weak consistency for ARMA processes: Adamyan, J. Contemp. Math. Anal. 2023).
+
+    Parameters
+    ----------
+    n_clusters : int
+        number of clusters
+    distance : ARMADistance | str | None
+        ``ARMADistance`` fitted on the raw series (``None`` uses ``ARMADistance()``), or
+        ``'precomputed'`` when ``X`` is a square distance matrix
+
+    Attributes
+    ----------
+    labels_ : np.ndarray
+        cluster per sample
+    centers_ : np.ndarray
+        sample index of each cluster centre, in selection order
+    distance_ : ARMADistance | None
+        fitted copy of ``distance``, or ``None`` when ``distance='precomputed'``
     """
 
-    def __init__(self, k, metric='piccolo', underlying_process='ARMA', process_args=None, metric_args=None):
-        super().__init__(metric=metric, underlying_process=underlying_process, metric_args=metric_args,
-                         process_args=process_args)
-        self.k = k
-        self.centroids_ = None
+    def __init__(self, n_clusters: int = 2, distance: ARMADistance | str | None = None) -> None:
+        self.n_clusters = n_clusters
+        self.distance = distance
 
-    def fit(self, X, **kwargs):
-        self.dist_matrix = self.get_distance_matrix(X)
-        dm = self.dist_matrix.values if isinstance(self.dist_matrix, pd.DataFrame) else np.asarray(self.dist_matrix)
+    def fit(self, X: ArrayLike | pd.DataFrame, y: None = None) -> 'ConsistentClustering':
+        """
+        Cluster the series (or the precomputed distance matrix) ``X``.
+
+        Parameters
+        ----------
+        X : ArrayLike | pd.DataFrame
+            series as accepted by ``ARMADistance``, or a square distance matrix when
+            ``distance='precomputed'``
+        y : None
+            ignored
+
+        Returns
+        -------
+        self : ConsistentClustering
+            fitted estimator
+        """
+        if (not isinstance(self.n_clusters, numbers.Integral) or isinstance(self.n_clusters, bool)
+                or self.n_clusters < 1):
+            raise ValueError(f'n_clusters must be an integer >= 1, got {self.n_clusters!r}')
+        dm = self._distance_matrix(X)
         n = dm.shape[0]
-        if self.k > n:
-            raise ValueError(f'k={self.k} is larger than the number of samples ({n})')
+        if self.n_clusters > n:
+            raise ValueError(f'n_clusters={self.n_clusters} is larger than the number of samples, n_samples={n}')
 
-        centroids = [0]
-        for _ in range(1, self.k):
-            d_to_nearest_centroid = dm[:, centroids].min(axis=1)
-            centroids.append(int(np.argmax(d_to_nearest_centroid)))
+        centers = [0]
+        for _ in range(1, self.n_clusters):
+            d_to_nearest_center = dm[:, centers].min(axis=1)
+            centers.append(int(np.argmax(d_to_nearest_center)))
 
-        self.centroids_ = np.array(centroids)
-        self.labels_ = dm[:, centroids].argmin(axis=1)
+        self.centers_ = np.array(centers)
+        self.labels_ = dm[:, centers].argmin(axis=1)
         return self
