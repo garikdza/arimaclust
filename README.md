@@ -37,6 +37,34 @@ above, are internal. A series collection can be a list of 1-D arrays (lengths ma
 per row, or a DataFrame with one series per column (NaNs are dropped). Pass `distance='precomputed'` to
 cluster a ready distance matrix instead.
 
+## Examples
+
+The `examples/` scripts run the method on synthetic clusters with a known separation δ: the smallest Piccolo
+distance (`tau=50`) between the ARMA processes that generate the clusters.
+
+![Clustering accuracy rising with series length, faster for larger δ](examples/figures/accuracy_vs_length.png)
+
+Each point is the mean adjusted mutual information (AMI) over eight draws of three clusters with ten series each,
+and the shaded band is ±1 standard deviation. Accuracy rises with the series length T, and sooner for larger δ: the
+δ ≥ 0.6 set is clustered perfectly from T = 200, and the two middle sets reach an AMI of 0.98 or more by T = 800.
+The δ < 0.2 set rises slowest and reaches only about 0.55 at T = 1600, with a wide spread; its models are close
+enough that much longer series are needed to tell them apart.
+
+The scripts need matplotlib, from the `examples` extra, and write their figures to `examples/figures/`. The
+slowest, `accuracy_vs_length.py`, fits about 6,000 models and takes several minutes on a multi-core machine.
+
+```bash
+uv sync --extra examples
+uv run --extra examples python examples/accuracy_vs_length.py   # accuracy_vs_length.png (the figure above)
+uv run --extra examples python examples/accuracy_vs_delta.py    # accuracy_vs_delta.png: accuracy against δ
+uv run --extra examples python examples/distance_matrix.py      # mds_embedding.png, distance_heatmap.png
+uv run --extra examples python examples/distance_estimation.py  # estimated_distance.png: fitted vs true δ
+uv run --extra examples python examples/processes.py            # sample_series.png, ar_coefficients.png
+```
+
+`examples/synthetic.py` holds the curated cluster sets, one per δ band, and `generate_separated_params`, which
+draws new sets with a given δ.
+
 ## Citation
 
 If you use arimaclust, please cite:

@@ -14,9 +14,19 @@ The project is managed with uv (`pyproject.toml`, hatchling backend).
 - `uv run pytest`: run the tests, including sklearn's estimator checks (`tests/test_sklearn_checks.py`), but not the tests marked `slow`. For a single test use `uv run pytest tests/test_metrics.py::test_mahalanobis_tau1_hand_value`.
 - `uv run pytest -m slow`: run the slow statistical tests (clustering recovery rising with series length). Add a node id after `-m slow` to run one; without `-m slow`, a slow test is deselected even when named by node id.
 - `uv run pytest --cov`: run the tests with a coverage report for `arimaclust`. It fails below the 85% floor set in `pyproject.toml`, the same check CI runs. Add `--cov-report=html` for a browsable report.
-- `uv run ruff check .`: lint (rules E, F, I, UP and B, line length 120, notebooks excluded).
+- `uv run ruff check .`: lint (rules E, F, I, UP and B, line length 120, notebooks excluded). `src = [".", "examples"]` makes `synthetic` a first-party import.
+- `uv sync --extra examples`: also install matplotlib, which only the example scripts need.
+- `uv run --extra examples python examples/<script>.py`: run one example script. They need no network and no GPU, and write their figures to `examples/figures/`; only `accuracy_vs_length.png` (shown in the README) is tracked, and `.gitignore` keeps the rest out.
 - CI (`.github/workflows/ci.yml`) runs ruff and the default tests with coverage on pushes to `main` and on PRs, and uploads the report to Codecov.
 - Nothing here needs a GPU. Prefix Python runs with `CUDA_VISIBLE_DEVICES=""`, as the global GPU rule requires.
+
+## Tests
+
+Tests are unit tests that mirror the code layout: one test file per module, at the mirrored path, named `test_<module>.py`, for example `examples/synthetic.py` → `tests/examples/test_synthetic.py`.
+
+- `arimaclust`'s tests sit directly in `tests/`, one file per area: `test_metrics.py` for `arimaclust/metrics/`, `test_estimators.py` for the estimators, and so on.
+- The `examples/` figure scripts are entry points and are run by hand. The module they import, `synthetic.py`, is unit-tested.
+- pytest's `pythonpath = ["examples"]` lets the tests `import synthetic`, as the scripts do. `synthetic.py` must not import matplotlib, so its tests run under a plain `uv sync`, as in CI.
 
 ## Architecture
 
@@ -36,5 +46,10 @@ The pipeline is `estimate → distance matrix → cluster`. The public API is th
   - `centroid.ConsistentClustering(n_clusters=2)` starts farthest-point selection at sample 0, then assigns each sample to its nearest centre (`centers_` holds the centre sample indices). This is the algorithm with the consistency proof.
   - `neighbours.ThresholdClustering(alpha)` builds the graph of pairs with distance ≤ `alpha` and returns its connected components as clusters. `alpha` has no default.
 - `data/`: synthetic ARMA cluster generators, with parameter sets in `examples.py` stored as `(ar_params, ma_params)` tuples.
+
+`examples/` (not in the wheel, no `__init__.py`) holds synthetic examples at a controlled separation δ, the smallest Piccolo distance (`tau=50`) between the processes that generate the clusters.
+
+- `synthetic.py`: `BANDS` (four δ bands) and `band_of`, `CURATED_SETS` (one three-cluster `CuratedSet` per band, its δ recorded and checked in the tests), `min_separation`, `generate_separated_params(n_clusters, delta, seed)` (random stationary, invertible ARMA(≤2, ≤2) processes kept greedily while pairwise ≥ δ; raises `RuntimeError` after `max_draws`) and `clustering_scores` (one seeded draw, `ConsistentClustering` + default `ARMADistance` fit and AMI per seed). No matplotlib.
+- The scripts, each writing to `examples/figures/`: `accuracy_vs_length.py` (AMI against length per band, the README figure), `accuracy_vs_delta.py` (AMI against δ on generated two-cluster sets), `distance_matrix.py` (MDS embedding and heatmap of a fitted distance matrix), `distance_estimation.py` (fitted against true δ by length) and `processes.py` (sample series and true AR(∞) coefficients). They import `synthetic` as a sibling module.
 
 Exchange-rate data (apilayer) must never be committed; `.gitignore` blocks data and result files under `experiments/`.
