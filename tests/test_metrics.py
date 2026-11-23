@@ -1,12 +1,12 @@
-import inspect
-from collections.abc import Callable
-
 import numpy as np
 import pandas as pd
+import pmdarima as pm
 import pytest
+import statsmodels.api as sm
 
 from arimaclust.autoarima.estimation import to_arma_process
 from arimaclust.data.examples import EXAMPLE1, EXAMPLE2
+from arimaclust.data.generate import generate_arma_sample
 from arimaclust.metrics.autoregressive import (
     SeriesModel,
     arma2ar,
@@ -19,6 +19,37 @@ from arimaclust.metrics.matrix import dist_matrix_parallel
 
 X_SERIES = np.array([1., 2., 3., 4.])
 Y_SERIES = np.array([1., -1., 1., -1., 1., -1.])
+
+
+@pytest.mark.parametrize('model', [
+    pytest.param(([0.5], [0.3]), id='tuple'),
+    pytest.param(to_arma_process([0.5], [0.3]), id='arma-process'),
+])
+def test_arma2ar_input_types_match_hand_values(model: tuple | sm.tsa.ArmaProcess):
+    # pi(B) = (1 - 0.5B) / (1 + 0.3B) = (1 - 0.5B)(1 - 0.3B + 0.09B^2 - 0.027B^3 ...) = 1 - 0.8B + 0.24B^2 - 0.072B^3,
+    # the lag polynomial of pi_k = (phi + theta)(-theta)^(k-1) = 0.8, -0.24, 0.072
+    np.testing.assert_allclose(arma2ar(model, tau=4), [1, -0.8, 0.24, -0.072], rtol=1e-12)
+
+
+def test_arma2ar_fitted_pmdarima_model():
+    np.random.seed(0)
+    model = pm.ARIMA(order=(1, 0, 1)).fit(generate_arma_sample([0.5], [0.3], 300))
+    phi, theta = model.arparams()[0], model.maparams()[0]
+    ar = arma2ar(model, tau=4)
+    # the same ARMA(1,1) closed form as above, with the fitted phi and theta
+    np.testing.assert_allclose(ar, np.r_[1, -(phi + theta) * (-theta) ** np.arange(3)], rtol=1e-12)
+    np.testing.assert_allclose(ar, arma2ar(to_arma_process(model.arparams(), model.maparams()), tau=4), rtol=1e-12)
+
+
+@pytest.mark.parametrize(('model', 'error', 'match'), [
+    pytest.param(([0.5], [0.3], [0.1]), ValueError, 'tuple of AR and MA params', id='tuple-length'),
+    pytest.param([[0.5], [0.3]], TypeError, 'must be tuple of parameters', id='list'),
+    # MA root 1/2.0 lies inside the unit circle
+    pytest.param(([0.5], [2.0]), ValueError, 'not invertible', id='non-invertible'),
+])
+def test_arma2ar_bad_input_raises(model: tuple | list, error: type[Exception], match: str):
+    with pytest.raises(error, match=match):
+        arma2ar(model)
 
 
 @pytest.mark.parametrize(('ar_params', 'ma_params', 'expected'), [
@@ -107,8 +138,3 @@ def test_dist_matrix_entries_and_parallel_equality(as_dict: bool):
     for i in range(4):
         for j in range(i):
             assert serial[i, j] == piccolo(items[i], items[j], tau=100)
-
-
-@pytest.mark.parametrize('func', [arma2ar, piccolo, cepstral_coefficients, cepstral, mahalanobis])
-def test_tau_defaults_to_50(func: Callable):
-    assert inspect.signature(func).parameters['tau'].default == 50

@@ -10,9 +10,12 @@ Consistent model-based clustering of ARIMA time series. Each series gets an auto
 
 The project is managed with uv (`pyproject.toml`, hatchling backend).
 
-- `uv sync`: install the library plus the dev tools (pytest, ruff).
-- `uv run pytest`: run the tests, including sklearn's estimator checks (`tests/test_sklearn_checks.py`). For a single test use `uv run pytest tests/test_smoke.py::test_piccolo_matches_known_value`.
+- `uv sync`: install the library plus the dev tools (pytest, pytest-cov, ruff).
+- `uv run pytest`: run the tests, including sklearn's estimator checks (`tests/test_sklearn_checks.py`), but not the tests marked `slow`. For a single test use `uv run pytest tests/test_metrics.py::test_mahalanobis_tau1_hand_value`.
+- `uv run pytest -m slow`: run the slow statistical tests (clustering recovery rising with series length). Add a node id after `-m slow` to run one; without `-m slow`, a slow test is deselected even when named by node id.
+- `uv run pytest --cov`: run the tests with a coverage report for `arimaclust`. It fails below the 85% floor set in `pyproject.toml`, the same check CI runs. Add `--cov-report=html` for a browsable report.
 - `uv run ruff check .`: lint (rules E, F, I, UP and B, line length 120, notebooks excluded).
+- CI (`.github/workflows/ci.yml`) runs ruff and the default tests with coverage on pushes to `main` and on PRs, and uploads the report to Codecov.
 - Nothing here needs a GPU. Prefix Python runs with `CUDA_VISIBLE_DEVICES=""`, as the global GPU rule requires.
 
 ## Architecture
