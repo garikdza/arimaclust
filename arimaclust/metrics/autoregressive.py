@@ -1,3 +1,4 @@
+import numbers
 from typing import NamedTuple
 
 import numpy as np
@@ -7,13 +8,29 @@ from scipy.linalg import toeplitz
 from statsmodels.tsa.stattools import acovf
 
 
+def check_tau(tau: object) -> None:
+    """Raise a ``ValueError`` unless ``tau``, the number of AR(inf) coefficients compared, is an integer >= 1."""
+    if not isinstance(tau, numbers.Integral) or isinstance(tau, bool) or tau < 1:
+        raise ValueError(f'tau must be an integer >= 1, got {tau!r}')
+
+
 def arma2ar(model: tuple | pm.arima.arima.ARIMA | sm.tsa.ArmaProcess, tau: int = 50) -> np.ndarray:
     """
-    Truncated AR(inf) coefficients of an invertible ARMA model.
+    Truncated AR(inf) lag polynomial of an invertible ARMA model.
 
-    ``model`` can be an ``(ar_params, ma_params)`` tuple, a fitted pmdarima ARIMA,
-    or a statsmodels ``ArmaProcess``.
+    Parameters
+    ----------
+    model : tuple | pm.arima.arima.ARIMA | sm.tsa.ArmaProcess
+        ``(ar_params, ma_params)`` tuple, fitted pmdarima ARIMA, or statsmodels ``ArmaProcess``
+    tau : int
+        number of lags returned, an integer >= 1
+
+    Returns
+    -------
+    coefficients : np.ndarray
+        lag polynomial coefficients at lags 0..tau-1, that is (1, -pi_1, ..., -pi_{tau-1})
     """
+    check_tau(tau)
     if isinstance(model, tuple):
         if len(model) != 2:
             raise ValueError('Please provide tuple of AR and MA params')
@@ -39,19 +56,30 @@ def arma2ar(model: tuple | pm.arima.arima.ARIMA | sm.tsa.ArmaProcess, tau: int =
 
 def piccolo(x_process: sm.tsa.ArmaProcess, y_process: sm.tsa.ArmaProcess, tau: int = 50) -> float:
     """
-    Piccolo (1990) AR distance: Euclidean distance between the AR(inf) coefficients,
-    truncated at ``tau`` lags.
+    Piccolo (1990) AR distance: Euclidean distance between the first ``tau`` AR(inf) coefficients
+    of the two models.
+
+    Parameters
+    ----------
+    x_process, y_process : sm.tsa.ArmaProcess
+        invertible ARMA models
+    tau : int
+        number of AR(inf) coefficients pi_1..pi_tau compared, an integer >= 1
+
+    Returns
+    -------
+    distance : float
+        Piccolo distance
     """
     if not (isinstance(x_process, sm.tsa.ArmaProcess) and isinstance(y_process, sm.tsa.ArmaProcess)):
         raise TypeError('Both processes must be statsmodels ArmaProcess instances')
 
-    x_ar = arma2ar(model=x_process, tau=tau)
-    y_ar = arma2ar(model=y_process, tau=tau)
-    return float(np.linalg.norm(x_ar - y_ar))
+    return float(np.linalg.norm(_ar_coefficients(x_process, tau=tau) - _ar_coefficients(y_process, tau=tau)))
 
 
 def _ar_coefficients(process: sm.tsa.ArmaProcess, tau: int) -> np.ndarray:
     """First ``tau`` AR(inf) coefficients pi_1..pi_tau, in the sign of x_t = sum pi_k x_{t-k} + e_t."""
+    check_tau(tau)  # before tau + 1, which would let tau=0 through
     return -arma2ar(model=process, tau=tau + 1)[1:]
 
 
@@ -64,7 +92,7 @@ def cepstral_coefficients(process: sm.tsa.ArmaProcess, tau: int = 50) -> np.ndar
     process : sm.tsa.ArmaProcess
         invertible ARMA model
     tau : int
-        number of AR(inf) coefficients used, and of cepstral coefficients returned
+        number of AR(inf) coefficients pi_1..pi_tau used, and of cepstral coefficients returned, an integer >= 1
 
     Returns
     -------
@@ -89,7 +117,7 @@ def cepstral(x_process: sm.tsa.ArmaProcess, y_process: sm.tsa.ArmaProcess, tau: 
     x_process, y_process : sm.tsa.ArmaProcess
         invertible ARMA models
     tau : int
-        number of cepstral coefficients compared
+        number of cepstral coefficients compared, computed from pi_1..pi_tau, an integer >= 1
 
     Returns
     -------
@@ -112,6 +140,9 @@ class SeriesModel(NamedTuple):
 def _ar_estimate(item: SeriesModel, tau: int) -> tuple[np.ndarray, np.ndarray]:
     """AR(inf) coefficients of ``item``'s model and their asymptotic covariance sigma^2 R^-1 / T."""
     pi = _ar_coefficients(item.process, tau=tau)
+    if len(item.series) <= tau:
+        raise ValueError(f'SeriesModel series has {len(item.series)} observations; '
+                         f'mahalanobis needs more than tau={tau}')
     gamma = acovf(item.series, adjusted=False, demean=True, fft=True, nlag=tau)
     a = np.r_[1, -pi]
     autocovariances = toeplitz(gamma)
@@ -135,9 +166,10 @@ def mahalanobis(x: SeriesModel, y: SeriesModel, tau: int = 50) -> float:
     Parameters
     ----------
     x, y : SeriesModel
-        series with their invertible ARMA models; each series should be much longer than ``tau``
+        series with their invertible ARMA models; each series must be longer than ``tau``, and should be
+        much longer
     tau : int
-        number of AR(inf) coefficients compared, the order of the test
+        number of AR(inf) coefficients pi_1..pi_tau compared, the order of the test, an integer >= 1
 
     Returns
     -------

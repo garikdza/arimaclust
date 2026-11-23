@@ -6,6 +6,7 @@ from sklearn.utils.validation import check_array
 
 from arimaclust.autoarima.estimation import estimate_processes
 from arimaclust.metrics import SeriesModel
+from arimaclust.metrics.autoregressive import check_tau
 from arimaclust.metrics.matrix import dist_matrix_parallel
 
 RESERVED_ARIMA_KWARGS = ('d', 'max_p', 'max_q')
@@ -56,7 +57,7 @@ class ARMADistance(TransformerMixin, BaseEstimator):
     Pairwise distances between ARMA models fitted to each series.
 
     Each series gets an ARMA model selected with ``pmdarima.auto_arima`` (BIC by default),
-    and the models are compared through their AR(inf) coefficients truncated at ``tau`` lags.
+    and the models are compared through their first ``tau`` AR(inf) coefficients.
 
     Parameters
     ----------
@@ -71,8 +72,9 @@ class ARMADistance(TransformerMixin, BaseEstimator):
         ``'piccolo'`` (Piccolo distance), ``'cepstral'`` (LPC cepstral distance) or ``'mahalanobis'``
         (Maharaj's Mahalanobis distance, which also weights the coefficients by each series)
     tau : int
-        AR(inf) lags compared; for ``'cepstral'`` the number of cepstral coefficients, for ``'mahalanobis'``
-        the AR order of the test, and series must be longer than it after differencing
+        number of AR(inf) coefficients pi_1..pi_tau compared, an integer >= 1; for ``'cepstral'`` the number
+        of cepstral coefficients, for ``'mahalanobis'`` the AR order of the test, and series must be longer
+        than it after differencing
     arima_kwargs : dict | None
         extra keywords for ``auto_arima`` (for example ``information_criterion``); they override
         the fit defaults but must not set ``max_p``, ``max_q`` or ``d``
@@ -124,6 +126,7 @@ class ARMADistance(TransformerMixin, BaseEstimator):
         if self.metric == 'mahalanobis' and self.d is None:
             raise ValueError("metric='mahalanobis' needs an explicit differencing order d, got d=None; "
                              "it compares the series differenced d times")
+        check_tau(self.tau)
         series, names = _split_series(X)
         if self.metric == 'mahalanobis':
             differenced = [np.diff(x, n=self.d) for x in series]
