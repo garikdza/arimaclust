@@ -139,3 +139,7 @@ experiments/**/*.npy
 experiments/**/*.json
 experiments/**/*.csv
 !experiments/exchange/codes.csv
+
+# example figures: only the one README.md shows is tracked
+examples/figures/*
+!examples/figures/accuracy_vs_length.png

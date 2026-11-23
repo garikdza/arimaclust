@@ -17,6 +17,9 @@ dependencies = [
     "joblib",
 ]
 
+[project.optional-dependencies]
+examples = ["matplotlib"]
+
 [dependency-groups]
 dev = [
     "pytest",
