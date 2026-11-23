@@ -5,9 +5,11 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils.validation import check_array
 
 from arimaclust.autoarima.estimation import estimate_processes
+from arimaclust.metrics import SeriesModel
 from arimaclust.metrics.matrix import dist_matrix_parallel
 
 RESERVED_ARIMA_KWARGS = ('d', 'max_p', 'max_q')
+METRICS = ('piccolo', 'cepstral', 'mahalanobis')
 
 
 def _split_series(X: ArrayLike | pd.DataFrame) -> tuple[list[np.ndarray], list]:
@@ -51,7 +53,7 @@ def _split_series(X: ArrayLike | pd.DataFrame) -> tuple[list[np.ndarray], list]:
 
 class ARMADistance(TransformerMixin, BaseEstimator):
     """
-    Pairwise Piccolo distances between ARMA models fitted to each series.
+    Pairwise distances between ARMA models fitted to each series.
 
     Each series gets an ARMA model selected with ``pmdarima.auto_arima`` (BIC by default),
     and the models are compared through their AR(inf) coefficients truncated at ``tau`` lags.
@@ -62,15 +64,20 @@ class ARMADistance(TransformerMixin, BaseEstimator):
         maximum AR order
     max_q : int
         maximum MA order
-    d : int
-        differencing order; it only affects fitting, the models keep their AR and MA parts
+    d : int | None
+        differencing order; it only affects fitting, the models keep their AR and MA parts.
+        ``None`` lets ``auto_arima`` choose it per series, which ``'mahalanobis'`` does not allow
+    metric : str
+        ``'piccolo'`` (Piccolo distance), ``'cepstral'`` (LPC cepstral distance) or ``'mahalanobis'``
+        (Maharaj's Mahalanobis distance, which also weights the coefficients by each series)
     tau : int
-        number of AR(inf) lags compared by the Piccolo distance
+        AR(inf) lags compared; for ``'cepstral'`` the number of cepstral coefficients, for ``'mahalanobis'``
+        the AR order of the test, and series must be longer than it after differencing
     arima_kwargs : dict | None
         extra keywords for ``auto_arima`` (for example ``information_criterion``); they override
         the fit defaults but must not set ``max_p``, ``max_q`` or ``d``
     n_jobs : int | None
-        number of series fitted in parallel; ``None`` fits them serially
+        number of parallel jobs for the model fits and the pairwise distances; ``None`` runs both serially
 
     Attributes
     ----------
@@ -80,11 +87,12 @@ class ARMADistance(TransformerMixin, BaseEstimator):
         symmetric distance matrix, labelled by the columns for a DataFrame
     """
 
-    def __init__(self, max_p: int = 3, max_q: int = 3, d: int = 0, tau: int = 10, arima_kwargs: dict | None = None,
-                 n_jobs: int | None = None) -> None:
+    def __init__(self, max_p: int = 3, max_q: int = 3, d: int | None = 0, metric: str = 'piccolo', tau: int = 50,
+                 arima_kwargs: dict | None = None, n_jobs: int | None = None) -> None:
         self.max_p = max_p
         self.max_q = max_q
         self.d = d
+        self.metric = metric
         self.tau = tau
         self.arima_kwargs = arima_kwargs
         self.n_jobs = n_jobs
@@ -111,7 +119,21 @@ class ARMADistance(TransformerMixin, BaseEstimator):
         if reserved:
             raise ValueError(f"arima_kwargs must not set {', '.join(map(repr, reserved))}; "
                              "use ARMADistance's own parameter")
+        if self.metric not in METRICS:
+            raise ValueError(f"metric must be one of {', '.join(map(repr, METRICS))}, got {self.metric!r}")
+        if self.metric == 'mahalanobis' and self.d is None:
+            raise ValueError("metric='mahalanobis' needs an explicit differencing order d, got d=None; "
+                             "it compares the series differenced d times")
         series, names = _split_series(X)
+        if self.metric == 'mahalanobis':
+            differenced = [np.diff(x, n=self.d) for x in series]
+            for name, x in zip(names, differenced, strict=True):
+                if len(x) <= self.tau:
+                    raise ValueError(f"Series {name!r} has {len(x)} observations after differencing; "
+                                     f"metric='mahalanobis' needs more than tau={self.tau}")
+                if np.ptp(x) == 0:
+                    raise ValueError(f"Series {name!r} is constant after differencing; "
+                                     "metric='mahalanobis' needs a non-constant series")
 
         fit_kwargs = {'start_p': min(2, self.max_p), 'start_q': min(2, self.max_q), **arima_kwargs}
         processes = estimate_processes(series, n_workers=self.n_jobs, max_p=self.max_p, max_q=self.max_q, d=self.d,
@@ -121,10 +143,16 @@ class ARMADistance(TransformerMixin, BaseEstimator):
                 raise ValueError(f'Series {name!r} has a non-invertible fitted ARMA model '
                                  f'(AR coefficients {process.arcoefs.tolist()}, '
                                  f'MA coefficients {process.macoefs.tolist()}); '
-                                 'the Piccolo distance needs invertible models')
+                                 'the AR(inf) representation every metric uses needs invertible models')
 
-        self.processes_ = dict(zip(names, processes, strict=True)) if isinstance(X, pd.DataFrame) else processes
-        self.dist_matrix_ = dist_matrix_parallel(self.processes_, metric_name='piccolo', tau=self.tau)
+        items = ([SeriesModel(x, p) for x, p in zip(differenced, processes, strict=True)]
+                 if self.metric == 'mahalanobis' else processes)
+        if isinstance(X, pd.DataFrame):
+            self.processes_ = dict(zip(names, processes, strict=True))
+            items = dict(zip(names, items, strict=True))
+        else:
+            self.processes_ = processes
+        self.dist_matrix_ = dist_matrix_parallel(items, metric_name=self.metric, n_jobs=self.n_jobs, tau=self.tau)
         return self
 
     def fit_transform(self, X: ArrayLike | pd.DataFrame, y: None = None) -> np.ndarray | pd.DataFrame:
