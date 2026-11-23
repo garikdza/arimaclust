@@ -52,6 +52,19 @@ def test_arma2ar_bad_input_raises(model: tuple | list, error: type[Exception], m
         arma2ar(model)
 
 
+@pytest.mark.parametrize(('x_params', 'y_params', 'tau', 'expected'), [
+    # an AR(1) has pi_1 = phi and pi_j = 0 for j > 1
+    pytest.param(([0.5], []), ([0.3], []), 1, 0.2, id='ar1-tau1'),
+    # an MA(1) has pi_j = -(-theta)^j: pi = (0.9, -0.81, ...) and (0.5, -0.25, ...)
+    pytest.param(([], [0.9]), ([], [0.5]), 2, np.hypot(0.4, 0.56), id='ma1-tau2'),
+    pytest.param(([], [0.9]), ([], [0.5]), 10,
+                 np.sqrt(sum(((-0.9) ** j - (-0.5) ** j) ** 2 for j in range(1, 11))), id='ma1-tau10'),
+])
+def test_piccolo_matches_closed_form(x_params: tuple, y_params: tuple, tau: int, expected: float):
+    distance = piccolo(to_arma_process(*x_params), to_arma_process(*y_params), tau=tau)
+    assert distance == pytest.approx(expected, rel=1e-12)
+
+
 @pytest.mark.parametrize(('ar_params', 'ma_params', 'expected'), [
     # pi = (0.8, -0.24, 0.072); c1 = 0.8; c2 = -0.24 + 1/2*0.8*0.8 = 0.08;
     # c3 = 0.072 + 1/3*0.8*(-0.24) + 2/3*0.08*0.8 = 0.152/3, which is (phi^n - (-theta)^n)/n
@@ -131,7 +144,10 @@ def test_dist_matrix_entries_and_parallel_equality(as_dict: bool):
         serial, parallel = serial.to_numpy(), parallel.to_numpy()
     np.testing.assert_array_equal(serial, parallel)
 
-    assert serial[1, 0] == serial[2, 1] == pytest.approx(0.0577350269, rel=1e-6)
+    # EXAMPLE2 shares theta(B) = 1 - 0.5B, so the pi difference is -0.05B(1 - B) / (1 - 0.5B):
+    # -0.05 at lag 1 and 0.025 * 0.5^(k-2) at lag k >= 2, with squares summing to 0.0025 + 0.000625 * 4/3 = 1/300
+    # (the tail beyond tau=100 is about 1e-60)
+    assert serial[1, 0] == serial[2, 1] == pytest.approx(np.sqrt(1 / 300), rel=1e-12)
     assert serial[2, 0] == 0
     np.testing.assert_array_equal(np.diag(serial), 0)
     np.testing.assert_array_equal(serial, serial.T)

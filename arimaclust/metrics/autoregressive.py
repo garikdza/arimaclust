@@ -39,15 +39,25 @@ def arma2ar(model: tuple | pm.arima.arima.ARIMA | sm.tsa.ArmaProcess, tau: int =
 
 def piccolo(x_process: sm.tsa.ArmaProcess, y_process: sm.tsa.ArmaProcess, tau: int = 50) -> float:
     """
-    Piccolo (1990) AR distance: Euclidean distance between the AR(inf) coefficients,
-    truncated at ``tau`` lags.
+    Piccolo (1990) AR distance: Euclidean distance between the first ``tau`` AR(inf) coefficients
+    of the two models.
+
+    Parameters
+    ----------
+    x_process, y_process : sm.tsa.ArmaProcess
+        invertible ARMA models
+    tau : int
+        number of AR(inf) coefficients pi_1..pi_tau compared
+
+    Returns
+    -------
+    distance : float
+        Piccolo distance
     """
     if not (isinstance(x_process, sm.tsa.ArmaProcess) and isinstance(y_process, sm.tsa.ArmaProcess)):
         raise TypeError('Both processes must be statsmodels ArmaProcess instances')
 
-    x_ar = arma2ar(model=x_process, tau=tau)
-    y_ar = arma2ar(model=y_process, tau=tau)
-    return float(np.linalg.norm(x_ar - y_ar))
+    return float(np.linalg.norm(_ar_coefficients(x_process, tau=tau) - _ar_coefficients(y_process, tau=tau)))
 
 
 def _ar_coefficients(process: sm.tsa.ArmaProcess, tau: int) -> np.ndarray:
