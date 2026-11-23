@@ -20,6 +20,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest",
+    "pytest-cov",
     "ruff",
 ]
 
@@ -39,3 +40,11 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not slow'"
+markers = ["slow: statistical tests that take a while; run them with `uv run pytest -m slow`"]
+
+[tool.coverage.run]
+source = ["arimaclust"]
+
+[tool.coverage.report]
+fail_under = 85
