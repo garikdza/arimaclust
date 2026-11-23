@@ -1,5 +1,7 @@
 # arimaclust
 
+[![codecov](https://codecov.io/gh/garikdza/arimaclust/branch/main/graph/badge.svg)](https://codecov.io/gh/garikdza/arimaclust)
+
 Consistent model-based clustering of ARIMA time series.
 
 Each series gets an ARMA model, selected by BIC with `pmdarima.auto_arima`. Series are compared through the
