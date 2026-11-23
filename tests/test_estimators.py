@@ -14,6 +14,8 @@ from arimaclust.models.centroid import ConsistentClustering
 from arimaclust.models.neighbours import ThresholdClustering
 
 WELL_SEPARATED = [([0.8], []), ([-0.6], [0.3])]
+# fixed white noise for parameters built at collection time
+NOISE = np.random.default_rng(0).standard_normal(80)
 
 
 def test_top_level_exports():
@@ -96,10 +98,10 @@ def test_mahalanobis_without_differencing_order_raises():
 
 
 @pytest.mark.parametrize(('X', 'match'), [
-    pytest.param([np.random.randn(80), np.random.randn(50)], 'Series 1 has 50 observations .*tau=50', id='list'),
-    pytest.param(pd.DataFrame({'a': pd.Series(np.random.randn(80)), 'b': pd.Series(np.random.randn(50))}),
+    pytest.param([NOISE, NOISE[:50]], 'Series 1 has 50 observations .*tau=50', id='list'),
+    pytest.param(pd.DataFrame({'a': pd.Series(NOISE), 'b': pd.Series(NOISE[:50])}),
                  "Series 'b' has 50 observations", id='dataframe'),
-    pytest.param([np.random.randn(80), np.ones(80)], 'Series 1 is constant', id='constant'),
+    pytest.param([NOISE, np.ones(80)], 'Series 1 is constant', id='constant'),
 ])
 def test_mahalanobis_short_or_constant_series_names_series(X: list | pd.DataFrame, match: str):
     with pytest.raises(ValueError, match=match):
@@ -214,6 +216,25 @@ def test_consistent_clustering_recovers_well_separated_clusters():
     assert model.distance_.dist_matrix_.shape == (10, 10)
     assert len(model.distance_.processes_) == 10
     assert not hasattr(model.distance, 'processes_')
+
+
+@pytest.mark.slow
+def test_consistent_clustering_recovery_improves_with_length():
+    lengths, seeds = (20, 50, 200, 1000), range(10)
+    distance = ARMADistance(max_p=2, max_q=2, d=0, tau=10, n_jobs=-1)
+    means = []
+    for length in lengths:
+        scores = []
+        for seed in seeds:
+            np.random.seed(seed)
+            X, y = generate_clusters(WELL_SEPARATED, t_min=length, samples_per_cluster=5)
+            model = ConsistentClustering(n_clusters=2, distance=distance).fit(X)
+            scores.append(adjusted_mutual_info_score(y, model.labels_))
+        means.append(np.mean(scores))
+    # observed mean AMI: 20 -> 0.367, 50 -> 0.807, 200 -> 1.0, 1000 -> 1.0
+    assert np.all(np.diff(means) >= 0), means
+    assert means[0] < means[-1], means
+    assert means[-1] >= 0.9, means
 
 
 def test_default_distance_is_fitted_copy():
