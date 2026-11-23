@@ -70,7 +70,7 @@ class ARMADistance(TransformerMixin, BaseEstimator):
         extra keywords for ``auto_arima`` (for example ``information_criterion``); they override
         the fit defaults but must not set ``max_p``, ``max_q`` or ``d``
     n_jobs : int | None
-        number of series fitted in parallel; ``None`` fits them serially
+        number of parallel jobs for the model fits and the pairwise distances; ``None`` runs both serially
 
     Attributes
     ----------
@@ -124,7 +124,8 @@ class ARMADistance(TransformerMixin, BaseEstimator):
                                  'the Piccolo distance needs invertible models')
 
         self.processes_ = dict(zip(names, processes, strict=True)) if isinstance(X, pd.DataFrame) else processes
-        self.dist_matrix_ = dist_matrix_parallel(self.processes_, metric_name='piccolo', tau=self.tau)
+        self.dist_matrix_ = dist_matrix_parallel(self.processes_, metric_name='piccolo', n_jobs=self.n_jobs,
+                                                 tau=self.tau)
         return self
 
     def fit_transform(self, X: ArrayLike | pd.DataFrame, y: None = None) -> np.ndarray | pd.DataFrame:

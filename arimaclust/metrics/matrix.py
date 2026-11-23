@@ -2,31 +2,45 @@ import importlib
 
 import numpy as np
 import pandas as pd
+from joblib import Parallel, delayed
 
 from arimaclust.utils import timeit
 
 
 @timeit
-def dist_matrix_parallel(processes: list | dict, metric_name: str, **kwargs) -> np.ndarray | pd.DataFrame:
+def dist_matrix_parallel(items: list | dict, metric_name: str, n_jobs: int | None = None,
+                         **kwargs) -> np.ndarray | pd.DataFrame:
     """
-    Symmetric pairwise distance matrix between fitted processes.
+    Symmetric pairwise distance matrix, with the pairs computed in parallel.
 
-    ``metric_name`` is looked up in ``arimaclust.metrics``; extra kwargs (e.g. ``tau``) go
-    to the metric. A dict of processes gives a DataFrame labelled by its keys, a list
-    gives an ndarray.
+    Parameters
+    ----------
+    items : list | dict
+        objects the metric compares (fitted processes, or ``SeriesModel`` for ``mahalanobis``)
+    metric_name : str
+        name of the metric in ``arimaclust.metrics``
+    n_jobs : int | None
+        number of joblib workers; ``None`` runs serially
+    **kwargs
+        passed to the metric (for example ``tau``)
+
+    Returns
+    -------
+    dist_matrix : np.ndarray | pd.DataFrame
+        symmetric distance matrix with a zero diagonal; a DataFrame labelled by the keys for a dict
     """
     metrics_module = importlib.import_module('arimaclust.metrics')
     metric = getattr(metrics_module, metric_name)
 
-    data = list(processes.values()) if isinstance(processes, dict) else list(processes)
+    data = list(items.values()) if isinstance(items, dict) else list(items)
     n = len(data)
+    rows, cols = np.tril_indices(n, k=-1)
     out_mat = np.zeros((n, n))
-    for i in range(n):
-        for j in range(i):
-            out_mat[i, j] = metric(data[i], data[j], **kwargs)
+    out_mat[rows, cols] = Parallel(n_jobs=n_jobs)(
+        delayed(metric)(data[i], data[j], **kwargs) for i, j in zip(rows, cols, strict=True))
     result = out_mat + out_mat.T
 
-    if isinstance(processes, dict):
-        keys = list(processes.keys())
+    if isinstance(items, dict):
+        keys = list(items.keys())
         return pd.DataFrame(data=result, index=keys, columns=keys)
     return result
