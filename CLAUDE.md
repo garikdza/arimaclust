@@ -24,7 +24,9 @@ The pipeline is `estimate → distance matrix → cluster`. The public API is th
   - `n_jobs` covers both the model fits and the distance matrix.
 - `autoarima/estimation.py`: `estimate_processes(X, n_workers=8, **kwargs)` runs `pmdarima.auto_arima` on each series of a list in parallel (joblib) and returns a list of statsmodels `ArmaProcess`. It selects orders by **BIC by default**, which the consistency theory requires; AIC is not consistent.
   - `kwargs` go straight to `auto_arima` (`max_p`, `max_q`, `d`, ...) and override `fit_arma`'s fixed options. The differencing order `d` only affects fitting: the returned `ArmaProcess` keeps just the AR and MA parts.
-- `metrics/`: distances between two `ArmaProcess` objects. `piccolo` truncates the AR(∞) coefficients at `tau` lags and needs invertible processes.
+- `metrics/`: distances between fitted models, all built on the AR(∞) coefficients and needing invertible processes. `tau` defaults to 50 everywhere.
+  - `piccolo` compares the AR(∞) coefficients truncated at `tau` lags, and `cepstral` the first `tau` LPC cepstral coefficients; both take two `ArmaProcess` objects.
+  - `mahalanobis` is Maharaj's Wald statistic on the first `tau` AR(∞) coefficients, weighted by each series' autocovariances and length. It compares `SeriesModel(series, process)` items; each series needs more than `tau` observations and must not be constant.
   - `matrix.dist_matrix_parallel` looks the metric up **by name** in the `arimaclust.metrics` namespace, so a new metric has to be exported in `metrics/__init__.py`.
   - It computes the pairs with joblib (`n_jobs`, `None` runs serially). A dict input gives a DataFrame labelled by its keys (index and columns). A list input gives an ndarray.
 - `models/`: sklearn clusterers taking `distance=None | ARMADistance(...) | 'precomputed'`. `models/distance_input.py`'s `DistanceInputMixin` fits a clone of `distance` (`None` means `ARMADistance()`) into `distance_`, or validates `X` as a square matrix for `'precomputed'` and sets the `pairwise` sklearn tag. The `distance` parameter itself is never fitted. Both clusterers fill `labels_` and provide `fit_predict`, but no `predict`.
