@@ -9,7 +9,7 @@ from sklearn.metrics import adjusted_mutual_info_score
 
 import arimaclust
 from arimaclust.data.generate import generate_arma_sample, generate_clusters
-from arimaclust.distance import ARMADistance
+from arimaclust.distance import METRICS, ARMADistance
 from arimaclust.models.centroid import ConsistentClustering
 from arimaclust.models.neighbours import ThresholdClustering
 
@@ -31,8 +31,8 @@ def _three_series() -> list[np.ndarray]:
 
 
 def test_arma_distance_default_params_and_clone():
-    assert ARMADistance().get_params() == {'max_p': 3, 'max_q': 3, 'd': 0, 'tau': 10, 'arima_kwargs': None,
-                                           'n_jobs': None}
+    assert ARMADistance().get_params() == {'max_p': 3, 'max_q': 3, 'd': 0, 'metric': 'piccolo', 'tau': 50,
+                                           'arima_kwargs': None, 'n_jobs': None}
     cloned = clone(ARMADistance(arima_kwargs={'stepwise': False}))
     assert cloned.get_params()['arima_kwargs'] == {'stepwise': False}
 
@@ -67,6 +67,58 @@ def test_dataframe_columns_are_series_with_trailing_nans_dropped():
     np.testing.assert_array_equal(D.to_numpy(), ARMADistance().fit_transform(series))
 
 
+@pytest.mark.parametrize('metric', METRICS)
+def test_metric_gives_symmetric_matrix_with_close_pair(metric: str):
+    D = ARMADistance(metric=metric).fit_transform(_three_series())
+    assert D.shape == (3, 3)
+    np.testing.assert_array_equal(D, D.T)
+    np.testing.assert_array_equal(np.diag(D), 0)
+    assert D[0, 1] < D[0, 2]  # the two AR(0.8) series are the close pair
+
+
+def test_mahalanobis_dataframe_keeps_labels_and_pairs_series():
+    series = _three_series()
+    df = pd.DataFrame({name: pd.Series(x) for name, x in zip('abc', series, strict=True)})
+    D = ARMADistance(metric='mahalanobis').fit_transform(df)
+    assert list(D.index) == list(D.columns) == ['a', 'b', 'c']
+    np.testing.assert_array_equal(D.to_numpy(), ARMADistance(metric='mahalanobis').fit_transform(series))
+
+
+@pytest.mark.parametrize('metric', ['nonexistent', 'arma2ar'])
+def test_unknown_metric_raises_with_valid_names(metric: str):
+    with pytest.raises(ValueError, match=f"'piccolo', 'cepstral', 'mahalanobis'.*got '{metric}'"):
+        ARMADistance(metric=metric).fit(_three_series())
+
+
+def test_mahalanobis_without_differencing_order_raises():
+    with pytest.raises(ValueError, match="metric='mahalanobis' needs an explicit differencing order d"):
+        ARMADistance(metric='mahalanobis', d=None).fit(_three_series())
+
+
+@pytest.mark.parametrize(('X', 'match'), [
+    pytest.param([np.random.randn(80), np.random.randn(50)], 'Series 1 has 50 observations .*tau=50', id='list'),
+    pytest.param(pd.DataFrame({'a': pd.Series(np.random.randn(80)), 'b': pd.Series(np.random.randn(50))}),
+                 "Series 'b' has 50 observations", id='dataframe'),
+    pytest.param([np.random.randn(80), np.ones(80)], 'Series 1 is constant', id='constant'),
+])
+def test_mahalanobis_short_or_constant_series_names_series(X: list | pd.DataFrame, match: str):
+    with pytest.raises(ValueError, match=match):
+        ARMADistance(metric='mahalanobis', tau=50).fit(X)
+
+
+def test_mahalanobis_checks_differenced_series():
+    # a linear trend is long enough but constant once differenced
+    with pytest.raises(ValueError, match='Series 1 is constant after differencing'):
+        ARMADistance(metric='mahalanobis', d=1, tau=10).fit([np.random.randn(80), np.arange(80.0)])
+
+
+@pytest.mark.parametrize('metric', METRICS)
+def test_parallel_fit_matches_serial(metric: str):
+    X = _three_series()
+    np.testing.assert_array_equal(ARMADistance(metric=metric, n_jobs=2).fit_transform(X),
+                                  ARMADistance(metric=metric).fit_transform(X))
+
+
 def _orders(distance: ARMADistance) -> list[tuple[int, int]]:
     return [(len(p.arcoefs), len(p.macoefs)) for p in distance.processes_]
 
@@ -90,6 +142,11 @@ def test_arima_kwargs_can_override_fit_options():
 def test_arima_kwargs_rejects_constructor_keys():
     with pytest.raises(ValueError, match="'d', 'max_p'"):
         ARMADistance(arima_kwargs={'max_p': 1, 'd': 1, 'stepwise': False}).fit(_three_series())
+
+
+def test_auto_selected_differencing_order_fits():
+    # d=None lets auto_arima choose the order; only metric='mahalanobis' differences the series itself
+    assert ARMADistance(d=None).fit(_three_series()).dist_matrix_.shape == (3, 3)
 
 
 def test_max_orders_below_two_fit():
