@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 import pandas as pd
 import pmdarima
@@ -112,6 +114,14 @@ def test_mahalanobis_checks_differenced_series():
     # a linear trend is long enough but constant once differenced
     with pytest.raises(ValueError, match='Series 1 is constant after differencing'):
         ARMADistance(metric='mahalanobis', d=1, tau=10).fit([np.random.randn(80), np.arange(80.0)])
+
+
+@pytest.mark.parametrize('tau', [0, -1, 2.5, True, '3', None], ids=repr)
+@pytest.mark.parametrize('metric', METRICS)
+def test_bad_tau_raises_before_series_checks(metric: str, tau: object):
+    # a single series would itself fail validation, so the tau error shows tau is checked first
+    with pytest.raises(ValueError, match=rf'tau must be an integer >= 1, got {re.escape(repr(tau))}'):
+        ARMADistance(metric=metric, tau=tau).fit([NOISE])
 
 
 @pytest.mark.parametrize('metric', METRICS)
@@ -259,10 +269,13 @@ def test_nested_distance_params_are_settable():
                  'n_clusters=4.*n_samples=3', id='d'),
     pytest.param(ConsistentClustering(n_clusters=0, distance='precomputed'), np.zeros((3, 3)),
                  'n_clusters must be an integer', id='n_clusters=0'),
+    pytest.param(ConsistentClustering(distance=ARMADistance(tau=0)), [NOISE], 'tau must be an integer >= 1, got 0',
+                 id='tau=0'),
     pytest.param(ThresholdClustering(distance='precomputed'), np.zeros((3, 3)), 'alpha', id='alpha=None'),
     pytest.param(ThresholdClustering(alpha=1.0, distance='euclidean'), np.zeros((3, 3)), 'distance must be',
                  id='distance=euclidean'),
 ])
-def test_bad_clusterer_input_raises(model: ConsistentClustering | ThresholdClustering, X: np.ndarray, match: str):
+def test_bad_clusterer_input_raises(model: ConsistentClustering | ThresholdClustering, X: np.ndarray | list,
+                                    match: str):
     with pytest.raises(ValueError, match=match):
         model.fit(X)
