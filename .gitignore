@@ -140,6 +140,7 @@ experiments/**/*.json
 experiments/**/*.csv
 !experiments/exchange/codes.csv
 
-# example figures: only the one README.md shows is tracked
+# example figures: only the ones README.md shows are tracked
 examples/figures/*
 !examples/figures/accuracy_vs_length.png
+!examples/figures/accuracy_vs_delta.png

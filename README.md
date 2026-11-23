@@ -11,6 +11,14 @@ nearest-centre assignment ([Khaleghi et al., JMLR 2016](https://www.jmlr.org/pap
 the maximum orders and the number of clusters are known, this procedure is weakly asymptotically consistent
 (Adamyan, *Journal of Contemporary Mathematical Analysis* 58(3), 2023).
 
+<p align="center">
+  <img src="examples/figures/accuracy_vs_delta.png" width="640"
+       alt="Clustering accuracy rising with the separation δ between the cluster-generating processes">
+</p>
+<p align="center"><sub>Clustering accuracy (AMI) against the separation δ of generated two-cluster sets, series of
+length 200: the further apart the processes, the more reliably the series are clustered. See
+<a href="#examples">Examples</a>.</sub></p>
+
 ## Install
 
 ```bash
