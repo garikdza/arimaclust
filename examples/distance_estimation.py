@@ -4,6 +4,9 @@ The Piccolo distance between two fitted models against series length, for the cl
 approaches the true distance δ. At these lengths BIC still often picks lower orders than the true ones, most for
 the closest set, where an AR(1) fits both the ARMA(1,1) and the MA(1) process well; that pulls its estimate below δ.
 
+The estimates are saved to ``figures/distance_estimation.npz`` and later runs plot from them; ``--recompute`` fits
+again.
+
 Run with ``uv run --extra examples python examples/distance_estimation.py``.
 """
 import itertools
@@ -14,44 +17,71 @@ import numpy as np
 
 from arimaclust import ARMADistance
 from arimaclust.data.generate import generate_clusters
+from results import load_or_compute, parse_args
 from synthetic import CURATED_SETS, min_separation
 
 LENGTHS = (50, 100, 200, 400, 800, 1600)
 N_PAIRS = 20
 FIGURES = Path(__file__).parent / 'figures'
+RESULTS = FIGURES / 'distance_estimation.npz'
 
 
-def main() -> None:
-    fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
-    for ax, curated in zip(axes.flat, CURATED_SETS, strict=True):
+def compute() -> dict[str, np.ndarray]:
+    """Estimate the distance of each curated set's closest pair ``N_PAIRS`` times per length."""
+    pairs, estimates = [], []
+    for curated in CURATED_SETS:
+        print(f'fitting {curated.band} ...')
         a, b = min(itertools.combinations(curated.params, 2), key=lambda pair: min_separation(list(pair)))
-        estimates = []
+        pairs.append(f'{a} vs {b}')
+        set_estimates = []
         for length in LENGTHS:
             np.random.seed(length)
             X, _ = generate_clusters([a, b], t_min=length, samples_per_cluster=N_PAIRS)
             # one fit of all series; series k of the first process is paired with series k of the second
             D = ARMADistance(n_jobs=-1).fit_transform(X)
-            estimates.append(D[np.arange(N_PAIRS), N_PAIRS + np.arange(N_PAIRS)])
-            print(f'{curated.band:>14}  T={length:<5} estimate {estimates[-1].mean():.3f} ± {estimates[-1].std():.3f}'
-                  f'  (δ={curated.delta})')
-        means, sds = np.mean(estimates, axis=1), np.std(estimates, axis=1)
-        ax.plot(LENGTHS, means, marker='o', label=f'mean of {N_PAIRS} estimates')
-        ax.fill_between(LENGTHS, means - sds, means + sds, alpha=0.2, label='± 1 sd')
-        ax.axhline(curated.delta, color='black', linestyle='--', label=f'true δ = {curated.delta}')
-        ax.set_title(f'{curated.band}: {a} vs {b}', fontsize=9)
+            set_estimates.append(D[np.arange(N_PAIRS), N_PAIRS + np.arange(N_PAIRS)])
+        estimates.append(set_estimates)
+    return {
+        'bands': np.array([curated.band for curated in CURATED_SETS]),
+        'deltas': np.array([curated.delta for curated in CURATED_SETS]),
+        'pairs': np.array(pairs),
+        'lengths': np.array(LENGTHS),
+        'estimates': np.array(estimates),
+    }
+
+
+def plot(results: dict[str, np.ndarray]) -> None:
+    """Print the mean and spread of the saved estimates and draw them against length, one panel per set."""
+    lengths, estimates = results['lengths'], results['estimates']
+    fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
+    for ax, band, delta, pair, set_estimates in zip(axes.flat, results['bands'], results['deltas'], results['pairs'],
+                                                    estimates, strict=True):
+        delta = float(delta)  # a plain float prints as before, e.g. 0.801
+        for length, length_estimates in zip(lengths, set_estimates, strict=True):
+            print(f'{band:>14}  T={length:<5} estimate {length_estimates.mean():.3f} ± {length_estimates.std():.3f}'
+                  f'  (δ={delta})')
+        means, sds = set_estimates.mean(axis=1), set_estimates.std(axis=1)
+        ax.plot(lengths, means, marker='o', label=f'mean of {estimates.shape[-1]} estimates')
+        ax.fill_between(lengths, means - sds, means + sds, alpha=0.2, label='± 1 sd')
+        ax.axhline(delta, color='black', linestyle='--', label=f'true δ = {delta}')
+        ax.set_title(f'{band}: {pair}', fontsize=9)
         ax.set_ylabel('Piccolo distance')
         ax.legend(fontsize=8)
     for ax in axes[-1]:
         ax.set_xscale('log')
-        ax.set_xticks(LENGTHS, [str(length) for length in LENGTHS])
+        ax.set_xticks(lengths, [str(length) for length in lengths])
         ax.set_xlabel('series length T')
     fig.suptitle('Piccolo distance between fitted models (ARMADistance, BIC) for the closest pair of each set')
 
-    FIGURES.mkdir(exist_ok=True)
     path = FIGURES / 'estimated_distance.png'
     fig.savefig(path, dpi=150, bbox_inches='tight')
     plt.close(fig)
     print(f'wrote {path}')
+
+
+def main() -> None:
+    args = parse_args(__doc__)
+    plot(load_or_compute(RESULTS, compute, args.recompute))
 
 
 if __name__ == '__main__':

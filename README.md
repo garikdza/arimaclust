@@ -52,6 +52,9 @@ enough that much longer series are needed to tell them apart.
 
 The scripts need matplotlib, from the `examples` extra, and write their figures to `examples/figures/`. The
 slowest, `accuracy_vs_length.py`, fits about 6,000 models and takes several minutes on a multi-core machine.
+The four scripts that fit models save their raw results next to the figures, as `examples/figures/<script>.npz`, and
+later runs redraw the figures from that file in seconds. Pass `--recompute` to fit again, for example after changing
+a script's settings or a curated set.
 
 ```bash
 uv sync --extra examples
