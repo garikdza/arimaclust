@@ -1,3 +1,6 @@
+import re
+from collections.abc import Callable
+
 import numpy as np
 import pandas as pd
 import pmdarima as pm
@@ -19,6 +22,8 @@ from arimaclust.metrics.matrix import dist_matrix_parallel
 
 X_SERIES = np.array([1., 2., 3., 4.])
 Y_SERIES = np.array([1., -1., 1., -1., 1., -1.])
+P, Q = to_arma_process([0.4], []), to_arma_process([-0.5], [])
+X_ITEM, Y_ITEM = SeriesModel(X_SERIES, P), SeriesModel(Y_SERIES, Q)
 
 
 @pytest.mark.parametrize('model', [
@@ -50,6 +55,35 @@ def test_arma2ar_fitted_pmdarima_model():
 def test_arma2ar_bad_input_raises(model: tuple | list, error: type[Exception], match: str):
     with pytest.raises(error, match=match):
         arma2ar(model)
+
+
+@pytest.mark.parametrize('tau', [0, -1, 2.5, True, '3', None], ids=repr)
+@pytest.mark.parametrize(('func', 'args'), [
+    pytest.param(arma2ar, (([0.5], [0.3]),), id='arma2ar-tuple'),
+    pytest.param(arma2ar, (P,), id='arma2ar-process'),
+    pytest.param(piccolo, (P, Q), id='piccolo'),
+    pytest.param(cepstral, (P, Q), id='cepstral'),
+    pytest.param(cepstral_coefficients, (P,), id='cepstral-coefficients'),
+    pytest.param(mahalanobis, (X_ITEM, Y_ITEM), id='mahalanobis'),
+])
+def test_bad_tau_raises(func: Callable, args: tuple, tau: object):
+    # the repr shows the value as given, not tau + 1 (True as True, 2.5 as 2.5)
+    with pytest.raises(ValueError, match=rf'tau must be an integer >= 1, got {re.escape(repr(tau))}'):
+        func(*args, tau=tau)
+
+
+def test_numpy_integer_tau_matches_int():
+    np.testing.assert_array_equal(arma2ar(P, np.int64(3)), arma2ar(P, 3))
+    assert piccolo(P, Q, np.int64(3)) == piccolo(P, Q, 3)
+    assert cepstral(P, Q, np.int64(3)) == cepstral(P, Q, 3)
+    assert mahalanobis(X_ITEM, Y_ITEM, np.int64(3)) == mahalanobis(X_ITEM, Y_ITEM, 3)
+
+
+def test_mahalanobis_series_not_longer_than_tau_raises():
+    with pytest.raises(ValueError, match='has 4 observations.*tau=4'):
+        mahalanobis(X_ITEM, Y_ITEM, tau=4)
+    # n = tau + 1 is the shortest series that works
+    assert np.isfinite(mahalanobis(X_ITEM, Y_ITEM, tau=3))
 
 
 @pytest.mark.parametrize(('x_params', 'y_params', 'tau', 'expected'), [
