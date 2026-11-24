@@ -16,7 +16,7 @@ from arimaclust.autoarima.estimation import to_arma_process
 from arimaclust.data.generate import generate_clusters
 from arimaclust.metrics import piccolo
 
-# (ar_params, ma_params), without the zero lag, as in arimaclust.data.examples
+# (ar_params, ma_params), without the zero lag
 Params = tuple[list[float], list[float]]
 
 TAU = 50
@@ -70,6 +70,11 @@ CURATED_SETS: tuple[CuratedSet, ...] = (
     CuratedSet('δ ≥ 0.6', 0.8010, [([-0.6], []), ([-0.2, 0.7], []), ([], [0.2])]),
 )
 
+
+# two processes whose AR(∞) representations are far apart
+EXAMPLE1: list[Params] = [([0.3, -0.2], [-0.5]), ([0.7, -0.4, 0.1], [0.5, -0.2])]
+# two processes whose AR(∞) representations are near: same MA part, AR parts 0.05 apart
+EXAMPLE2: list[Params] = [([0.3, -0.2], [-0.5]), ([0.25, -0.15], [-0.5])]
 
 def _lag_coefficients(rng: np.random.Generator, order: int) -> np.ndarray:
     """Coefficients after the leading 1 of a random (1 - r_1 B)...(1 - r_order B) with |r_i| <= MAX_ROOT_MODULUS."""

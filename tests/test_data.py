@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from arimaclust.data.examples import EXAMPLE1
 from arimaclust.data.generate import generate_clusters
+from synthetic import EXAMPLE1
 
 
 def test_generate_clusters_per_cluster_counts():

@@ -8,7 +8,6 @@ import pytest
 import statsmodels.api as sm
 
 from arimaclust.autoarima.estimation import to_arma_process
-from arimaclust.data.examples import EXAMPLE1, EXAMPLE2
 from arimaclust.data.generate import generate_arma_sample
 from arimaclust.metrics.autoregressive import (
     SeriesModel,
@@ -19,6 +18,7 @@ from arimaclust.metrics.autoregressive import (
     piccolo,
 )
 from arimaclust.metrics.matrix import dist_matrix_parallel
+from synthetic import EXAMPLE1, EXAMPLE2
 
 X_SERIES = np.array([1., 2., 3., 4.])
 Y_SERIES = np.array([1., -1., 1., -1., 1., -1.])

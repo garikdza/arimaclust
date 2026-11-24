@@ -27,11 +27,12 @@ uv sync
 
 ```python
 from arimaclust import ARMADistance, ConsistentClustering
-from arimaclust.data.examples import CLUSTER1
 from arimaclust.data.generate import generate_clusters
 
-X, y = generate_clusters(params=CLUSTER1, t_min=500, samples_per_cluster=20)
-model = ConsistentClustering(n_clusters=len(CLUSTER1),
+# one (AR coefficients, MA coefficients) pair per cluster: an AR(1), an AR(2) and an MA(1)
+params = [([-0.6], []), ([-0.2, 0.7], []), ([], [0.2])]
+X, y = generate_clusters(params=params, t_min=500, samples_per_cluster=20)
+model = ConsistentClustering(n_clusters=len(params),
                              distance=ARMADistance(max_p=3, max_q=3, d=0, tau=10, n_jobs=-1)).fit(X)
 model.labels_                  # cluster per series
 model.distance_.dist_matrix_   # pairwise Piccolo distances

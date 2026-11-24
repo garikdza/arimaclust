@@ -8,6 +8,8 @@ from arimaclust.autoarima.estimation import to_arma_process
 from arimaclust.metrics import piccolo
 from synthetic import (
     CURATED_SETS,
+    EXAMPLE1,
+    EXAMPLE2,
     CuratedSet,
     band_of,
     clustering_scores,
@@ -95,3 +97,14 @@ def test_clustering_scores_reseed_each_draw():
                                                             seeds=(0, 1, 2)))
     # each draw gets its own seed, so the hard set scores differently on each
     assert len(set(scores)) > 1, scores
+
+
+@pytest.mark.parametrize('params', EXAMPLE1 + EXAMPLE2)
+def test_example_pairs_are_stationary_and_invertible(params: tuple[list[float], list[float]]):
+    process = to_arma_process(*params)
+    assert process.isstationary
+    assert process.isinvertible
+
+
+def test_example1_is_further_apart_than_example2():
+    assert min_separation(EXAMPLE1) > min_separation(EXAMPLE2)
