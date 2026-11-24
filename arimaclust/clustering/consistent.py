@@ -6,8 +6,8 @@ import pandas as pd
 from numpy.typing import ArrayLike
 from sklearn.base import BaseEstimator, ClusterMixin
 
-from arimaclust.distance import ARMADistance
-from arimaclust.models.distance_input import DistanceInputMixin
+from arimaclust.clustering._input import DistanceInputMixin
+from arimaclust.metrics import ARMADistance
 
 
 class ConsistentClustering(DistanceInputMixin, ClusterMixin, BaseEstimator):

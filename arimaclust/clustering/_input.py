@@ -4,7 +4,7 @@ from sklearn.base import clone
 from sklearn.utils import Tags
 from sklearn.utils.validation import validate_data
 
-from arimaclust.distance import ARMADistance
+from arimaclust.metrics import ARMADistance
 
 
 class DistanceInputMixin:

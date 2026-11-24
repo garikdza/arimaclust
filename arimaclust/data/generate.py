@@ -3,7 +3,7 @@ from collections.abc import Sequence
 import numpy as np
 from numpy.typing import ArrayLike
 
-from arimaclust.autoarima.estimation import to_arma_process
+from arimaclust.modeling import FittedARIMA
 
 # observations drawn and discarded before each series, so it starts close to the stationary distribution
 BURNIN = 100
@@ -34,8 +34,8 @@ def generate_arma_sample(ar_params: ArrayLike, ma_params: ArrayLike, length: int
         the series, of shape ``(length,)``
     """
     rng = np.random.default_rng(random_state)
-    return to_arma_process(ar_params, ma_params).generate_sample(nsample=length, burnin=burnin,
-                                                                   distrvs=rng.standard_normal)
+    return FittedARIMA(ar_params, ma_params).arma_process.generate_sample(nsample=length, burnin=burnin,
+                                                                            distrvs=rng.standard_normal)
 
 
 def generate_clusters(params: Sequence[tuple[ArrayLike, ArrayLike]], length: int, n_per_cluster: int | Sequence[int],

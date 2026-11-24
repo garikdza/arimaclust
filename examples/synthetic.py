@@ -12,9 +12,9 @@ import numpy as np
 from sklearn.metrics import adjusted_mutual_info_score
 
 from arimaclust import ARMADistance, ConsistentClustering
-from arimaclust.autoarima.estimation import to_arma_process
 from arimaclust.data import generate_clusters
 from arimaclust.metrics import piccolo
+from arimaclust.modeling import FittedARIMA
 
 # (ar_params, ma_params), without the zero lag
 Params = tuple[list[float], list[float]]
@@ -58,8 +58,8 @@ def min_separation(params: list[Params]) -> float:
     delta : float
         the separation δ of the set
     """
-    processes = [to_arma_process(*p) for p in params]
-    return min(piccolo(a, b, tau=TAU) for a, b in itertools.combinations(processes, 2))
+    models = [FittedARIMA(*p) for p in params]
+    return min(piccolo(a, b, tau=TAU) for a, b in itertools.combinations(models, 2))
 
 
 # one set per band, each mixing AR, MA and ARMA clusters; the deltas are recorded to 4 dp and checked in the tests
@@ -131,13 +131,13 @@ def generate_separated_params(n_clusters: int, delta: float, seed: int, max_draw
         if ``max_draws`` draws don't give ``n_clusters`` separated processes
     """
     rng = np.random.default_rng(seed)
-    kept, processes = [], []
+    kept, models = [], []
     for _ in range(max_draws):
         candidate = _draw_params(rng)
-        process = to_arma_process(*candidate)
-        if all(piccolo(process, other, tau=TAU) >= delta for other in processes):
+        model = FittedARIMA(*candidate)
+        if all(piccolo(model, other, tau=TAU) >= delta for other in models):
             kept.append(candidate)
-            processes.append(process)
+            models.append(model)
             if len(kept) == n_clusters:
                 return kept
     raise RuntimeError(f'found {len(kept)} of {n_clusters} processes with pairwise Piccolo distance >= {delta} '

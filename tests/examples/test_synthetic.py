@@ -4,8 +4,8 @@ import math
 import numpy as np
 import pytest
 
-from arimaclust.autoarima.estimation import to_arma_process
 from arimaclust.metrics import piccolo
+from arimaclust.modeling import FittedARIMA
 from synthetic import (
     CURATED_SETS,
     EXAMPLE1,
@@ -41,14 +41,14 @@ def test_band_of_boundaries(delta: float, band: str):
 @pytest.mark.parametrize('curated', CURATED_SETS, ids=lambda s: s.band)
 def test_curated_set_processes_are_stationary_and_invertible(curated: CuratedSet):
     for params in curated.params:
-        process = to_arma_process(*params)
+        process = FittedARIMA(*params).arma_process
         assert process.isstationary, params
         assert process.isinvertible, params
 
 
 @pytest.mark.parametrize('curated', CURATED_SETS, ids=lambda s: s.band)
 def test_curated_set_delta_is_recomputed_min_piccolo(curated: CuratedSet):
-    recomputed = min(piccolo(to_arma_process(*a), to_arma_process(*b), tau=50)
+    recomputed = min(piccolo(FittedARIMA(*a), FittedARIMA(*b), tau=50)
                      for a, b in itertools.combinations(curated.params, 2))
     # the deltas are recorded to 4 dp
     assert curated.delta == pytest.approx(recomputed, abs=5e-5)
@@ -65,11 +65,11 @@ def test_curated_sets_cover_every_band():
 def test_generated_sets_are_separated_stationary_invertible(delta: float):
     params = generate_separated_params(4, delta, seed=0)
     assert len(params) == 4
-    processes = [to_arma_process(*p) for p in params]
-    for p, process in zip(params, processes, strict=True):
-        assert process.isstationary, p
-        assert process.isinvertible, p
-    for a, b in itertools.combinations(processes, 2):
+    models = [FittedARIMA(*p) for p in params]
+    for p, model in zip(params, models, strict=True):
+        assert model.arma_process.isstationary, p
+        assert model.isinvertible, p
+    for a, b in itertools.combinations(models, 2):
         assert piccolo(a, b, tau=50) >= delta
 
 
@@ -101,7 +101,7 @@ def test_clustering_scores_reseed_each_draw():
 
 @pytest.mark.parametrize('params', EXAMPLE1 + EXAMPLE2)
 def test_example_pairs_are_stationary_and_invertible(params: tuple[list[float], list[float]]):
-    process = to_arma_process(*params)
+    process = FittedARIMA(*params).arma_process
     assert process.isstationary
     assert process.isinvertible
 

@@ -4,10 +4,10 @@ from numpy.typing import ArrayLike
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils.validation import check_array
 
-from arimaclust.autoarima.estimation import estimate_processes, to_arma_process
-from arimaclust.metrics import METRICS, SeriesModel
-from arimaclust.metrics.autoregressive import check_tau
+from arimaclust.metrics.autoregressive import METRICS
 from arimaclust.metrics.matrix import dist_matrix_parallel
+from arimaclust.modeling import fit_arimas
+from arimaclust.utils import check_tau
 
 RESERVED_ARIMA_KWARGS = ('d', 'max_p', 'max_q')
 
@@ -88,8 +88,8 @@ class ARMADistance(TransformerMixin, BaseEstimator):
 
     Attributes
     ----------
-    processes_ : list[sm.tsa.ArmaProcess] | dict[Hashable, sm.tsa.ArmaProcess]
-        fitted model per series, with AR polynomial phi(B) (1 - B)^d, as ``{column: process}`` for a DataFrame
+    models_ : list[FittedARIMA] | dict[Hashable, FittedARIMA]
+        fitted model per series, holding its series, as ``{column: model}`` for a DataFrame
     dist_matrix_ : np.ndarray | pd.DataFrame
         symmetric distance matrix, labelled by the columns for a DataFrame
     """
@@ -134,8 +134,8 @@ class ARMADistance(TransformerMixin, BaseEstimator):
         check_tau(self.tau)
         series, names = _split_series(X)
         if self.metric == 'mahalanobis':
-            differenced = [np.diff(x, n=self.d) for x in series]
-            for name, x in zip(names, differenced, strict=True):
+            # checked before fitting, so a bad series fails fast and by name
+            for name, x in zip(names, (np.diff(x, n=self.d) for x in series), strict=True):
                 if len(x) <= self.tau:
                     raise ValueError(f"Series {name!r} has {len(x)} observations after differencing; "
                                      f"metric='mahalanobis' needs more than tau={self.tau}")
@@ -144,25 +144,16 @@ class ARMADistance(TransformerMixin, BaseEstimator):
                                      "metric='mahalanobis' needs a non-constant series")
 
         fit_kwargs = {'start_p': min(2, self.max_p), 'start_q': min(2, self.max_q), **arima_kwargs}
-        fits = estimate_processes(series, n_jobs=self.n_jobs, names=names, max_p=self.max_p, max_q=self.max_q,
-                                  d=self.d, **fit_kwargs)
-        for name, (arma, _) in zip(names, fits, strict=True):
-            if not arma.isinvertible:
-                raise ValueError(f'Series {name!r} has a non-invertible fitted ARMA model '
-                                 f'(AR coefficients {arma.arcoefs.tolist()}, '
-                                 f'MA coefficients {arma.macoefs.tolist()}); '
+        models = fit_arimas(series, n_jobs=self.n_jobs, names=names, max_p=self.max_p, max_q=self.max_q, d=self.d,
+                            **fit_kwargs)
+        for name, model in zip(names, models, strict=True):
+            if not model.isinvertible:
+                raise ValueError(f'Series {name!r} has a non-invertible fitted model {model!r}; '
                                  'the AR(inf) representation every metric uses needs invertible models')
-        processes = [to_arma_process(arma.arcoefs, arma.macoefs, d=d) for arma, d in fits]
 
-        # mahalanobis compares the series differenced d times, so it takes the models without the differencing
-        items = ([SeriesModel(x, arma) for x, (arma, _) in zip(differenced, fits, strict=True)]
-                 if self.metric == 'mahalanobis' else processes)
-        if isinstance(X, pd.DataFrame):
-            self.processes_ = dict(zip(names, processes, strict=True))
-            items = dict(zip(names, items, strict=True))
-        else:
-            self.processes_ = processes
-        self.dist_matrix_ = dist_matrix_parallel(items, metric=METRICS[self.metric], n_jobs=self.n_jobs, tau=self.tau)
+        self.models_ = dict(zip(names, models, strict=True)) if isinstance(X, pd.DataFrame) else models
+        self.dist_matrix_ = dist_matrix_parallel(self.models_, metric=METRICS[self.metric], n_jobs=self.n_jobs,
+                                                 tau=self.tau)
         return self
 
     def fit_transform(self, X: ArrayLike | pd.DataFrame, y: None = None) -> np.ndarray | pd.DataFrame:

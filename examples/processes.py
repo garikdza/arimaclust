@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from arimaclust.data import generate_arma_sample
-from arimaclust.metrics import arma2ar
+from arimaclust.modeling import FittedARIMA
 from style import AXIS, CLUSTER_COLOURS, MINIMAL
 from synthetic import CURATED_SETS, TAU
 
@@ -54,9 +54,7 @@ def _ar_coefficients() -> None:
     fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True)
     for ax, curated in zip(axes.flat, CURATED_SETS, strict=True):
         for (ar, ma), colour in zip(curated.params, CLUSTER_COLOURS, strict=True):
-            # arma2ar gives the lag polynomial 1, -π₁, -π₂, …
-            pi = -arma2ar((ar, ma), tau=TAU + 1)[1:]
-            ax.plot(lags, pi, color=colour, marker='.', linewidth=1, label=f'AR {ar}, MA {ma}')
+            ax.plot(lags, FittedARIMA(ar, ma).pi(TAU), color=colour, marker='.', linewidth=1, label=f'AR {ar}, MA {ma}')
         ax.axhline(0, color=AXIS, linewidth=0.8)
         # log lags, so the first few, where these low-order processes differ, are not squeezed together
         ax.set_xscale('log')

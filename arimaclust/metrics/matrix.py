@@ -16,9 +16,9 @@ def dist_matrix_parallel(items: list | dict, metric: Callable[..., float], n_job
     Parameters
     ----------
     items : list | dict
-        objects the metric compares (fitted processes, or ``SeriesModel`` for ``mahalanobis``)
+        the models the metric compares
     metric : Callable[..., float]
-        distance between two items, for example a value of ``arimaclust.metrics.METRICS``
+        distance between two items, for example a value of ``METRICS``
     n_jobs : int | None
         number of joblib workers; ``None`` runs serially
     **kwargs

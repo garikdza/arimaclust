@@ -1,8 +1,15 @@
 import functools
 import logging
+import numbers
 import time
 
 logger = logging.getLogger('arimaclust')
+
+
+def check_tau(tau: object) -> None:
+    """Raise a ``ValueError`` unless ``tau``, the number of AR(inf) coefficients compared, is an integer >= 1."""
+    if not isinstance(tau, numbers.Integral) or isinstance(tau, bool) or tau < 1:
+        raise ValueError(f'tau must be an integer >= 1, got {tau!r}')
 
 
 def timeit(func):
