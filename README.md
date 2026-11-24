@@ -28,22 +28,27 @@ uv sync
 
 ```python
 from arimaclust import ARMADistance, ConsistentClustering
-from arimaclust.data.generate import generate_clusters
+from arimaclust.data import generate_clusters
 
 # one (AR coefficients, MA coefficients) pair per cluster: an AR(1), an AR(2) and an MA(1)
 params = [([-0.6], []), ([-0.2, 0.7], []), ([], [0.2])]
-X, y = generate_clusters(params=params, t_min=500, samples_per_cluster=20)
+X, y = generate_clusters(params, length=500, n_per_cluster=20, random_state=0)
 model = ConsistentClustering(n_clusters=len(params),
                              distance=ARMADistance(max_p=3, max_q=3, d=0, tau=10, n_jobs=-1)).fit(X)
 model.labels_                  # cluster per series
 model.distance_.dist_matrix_   # pairwise Piccolo distances
 ```
 
-The public API is what `arimaclust` exports at the top level: `ARMADistance`, `ConsistentClustering` and
-`ThresholdClustering`, all scikit-learn estimators. Other modules, including the `arimaclust.data` generators used
-above, are internal. A series collection can be a list of 1-D arrays (lengths may differ), a 2D array with one series
-per row, or a DataFrame with one series per column (NaNs are dropped). Pass `distance='precomputed'` to
-cluster a ready distance matrix instead.
+The public API is the three scikit-learn estimators `arimaclust` exports at the top level, `ARMADistance`,
+`ConsistentClustering` and `ThresholdClustering`, and the synthetic data generators in `arimaclust.data`,
+`generate_arma_sample` and `generate_clusters`. Other modules are internal. A series collection can be a list of
+1-D arrays (lengths may differ), a 2D array with one series per row, or a DataFrame with one series per column (NaNs
+are dropped). Pass `distance='precomputed'` to cluster a ready distance matrix instead.
+
+`ARMADistance` fits ARIMA(p, d, q) models with `d=0` by default. A fixed `d=1` differences every series once, and
+`d=None` lets `auto_arima` choose `d` for each series. The differencing stays in the AR(∞) coefficients the distance
+compares, so a random walk and white noise are 1 apart, not 0. `ConsistentClustering` raises an error when the
+series form fewer distinct groups than `n_clusters`.
 
 ## Examples
 

@@ -85,6 +85,10 @@ the sum at $\tau$:
 \hat d_{\mathrm{PIC}}(x_1, x_2) = \Bigl( \sum_{j=1}^{\tau} \bigl(\hat\pi^{(1)}_j - \hat\pi^{(2)}_j\bigr)^2 \Bigr)^{1/2} .
 ```
 
+For a non-stationary series fitted as ARIMA(p, d, q), `ARMADistance` uses the weights of
+$\pi(B) = \phi(B)(1 - B)^d / \theta(B)$, the AR(∞) form of the ARIMA model; they still decay geometrically once
+the MA polynomial is invertible. The results below are stated for stationary ARMA processes, that is $d = 0$.
+
 In the theory $\tau = \tau_n$ grows to infinity with the series length. The code uses a fixed `tau` (default 50), so
 it compares the first `tau` weights. Since the weights decay geometrically, the omitted tail is small for an
 invertible model, but the consistency results are stated for $\tau_n \to \infty$.
@@ -116,6 +120,12 @@ penalty does not satisfy the first condition, and criteria that fail it can over
 probability (Hannan 1980).
 For the wider class Bardet et al. cover, which includes for example AR models with ARCH(∞) errors, BIC is not always
 consistent, which is why the results here are stated for ARMA. `ARMADistance` selects by BIC for this reason.
+
+The search itself differs from the theorem in one respect. By default `auto_arima` searches the orders stepwise,
+from (2, 2) to neighbouring orders, instead of over all of them. On the curated example processes, at lengths 100
+to 1600, stepwise missed the lowest BIC in 2 fits out of 360, all at length 100, and was about three times faster.
+`arima_kwargs={'stepwise': False, 'max_order': None}` runs the full search; without `max_order=None`, pmdarima
+skips orders with p + q > 5.
 
 ## The consistency theorems
 
