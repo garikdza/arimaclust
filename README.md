@@ -1,8 +1,6 @@
-# arimaclust
+# arimaclust: consistent clustering of ARIMA time series
 
 [![codecov](https://codecov.io/gh/garikdza/arimaclust/branch/main/graph/badge.svg)](https://codecov.io/gh/garikdza/arimaclust)
-
-Consistent model-based clustering of ARIMA time series.
 
 Each series gets an ARMA model, selected by BIC with `pmdarima.auto_arima`. Series are compared through the
 [Piccolo (1990)](https://doi.org/10.1111/j.1467-9892.1990.tb00048.x) AR distance: the Euclidean distance between
