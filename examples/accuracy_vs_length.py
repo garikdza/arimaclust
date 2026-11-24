@@ -5,6 +5,7 @@ The scores are saved to ``figures/accuracy_vs_length.npz`` and later runs plot f
 
 Run with ``uv run --extra examples python examples/accuracy_vs_length.py``.
 """
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -42,13 +43,15 @@ def plot(results: dict[str, np.ndarray]) -> None:
     lengths, scores = results['lengths'], results['scores']
     with plt.rc_context(MINIMAL):
         fig, ax = plt.subplots(figsize=(7.5, 4.5))
-        for band, delta, set_scores, colour in zip(results['bands'], results['deltas'], scores, BAND_COLOURS,
-                                                   strict=True):
+        for band, delta, set_scores, colour in zip(
+            results['bands'], results['deltas'], scores, BAND_COLOURS, strict=True
+        ):
             for length, length_scores in zip(lengths, set_scores, strict=True):
                 print(f'{band:>14}  T={length:<5} AMI {length_scores.mean():.3f} ± {length_scores.std():.3f}')
             means, sds = set_scores.mean(axis=1), set_scores.std(axis=1)
-            ax.fill_between(lengths, np.clip(means - sds, 0, 1), np.clip(means + sds, 0, 1), color=colour,
-                            alpha=0.08, linewidth=0)
+            ax.fill_between(
+                lengths, np.clip(means - sds, 0, 1), np.clip(means + sds, 0, 1), color=colour, alpha=0.08, linewidth=0
+            )
             ax.plot(lengths, means, color=colour, label=f'{band}  (δ={float(delta)})')
             ax.scatter(lengths, means, s=30, color=colour, edgecolor=SURFACE, linewidth=1.5, zorder=3)
         ax.set_xscale('log')

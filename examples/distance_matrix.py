@@ -6,6 +6,7 @@ The fit is saved to ``figures/distance_matrix.npz`` and later runs plot from it;
 
 Run with ``uv run --extra examples python examples/distance_matrix.py``.
 """
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -15,7 +16,7 @@ from sklearn.manifold import MDS
 from sklearn.metrics import adjusted_mutual_info_score
 
 from arimaclust import ARMADistance, ConsistentClustering
-from arimaclust.data.generate import generate_clusters
+from arimaclust.data import generate_clusters
 from results import load_or_compute, parse_args
 from style import CLUSTER_COLOURS, DISTANCE_RAMP, INK, MINIMAL, SURFACE
 from synthetic import CURATED_SETS
@@ -30,12 +31,11 @@ RESULTS = FIGURES / 'distance_matrix.npz'
 def compute() -> dict[str, np.ndarray]:
     """Fit the clustering of the ``BAND`` set and return its distance matrix and labels."""
     curated = next(s for s in CURATED_SETS if s.band == BAND)
-    np.random.seed(0)
-    X, y = generate_clusters(curated.params, t_min=LENGTH, samples_per_cluster=N_PER_CLUSTER)
+    X, y = generate_clusters(curated.params, LENGTH, N_PER_CLUSTER, random_state=0)
     model = ConsistentClustering(n_clusters=len(curated.params), distance=ARMADistance(n_jobs=-1)).fit(X)
     return {
         'distances': model.distance_.dist_matrix_,
-        'y_true': np.asarray(y),
+        'y_true': y,
         'y_pred': model.labels_,
         'band': np.array(BAND),
         'delta': np.array(curated.delta),
@@ -58,8 +58,9 @@ def plot(results: dict[str, np.ndarray]) -> None:
         fig, (heat, mds) = plt.subplots(1, 2, figsize=(11.5, 4.8), gridspec_kw={'width_ratios': [1.1, 1]})
         # generate_clusters returns the series grouped by cluster, so the blocks are the clusters
         heat.grid(False)
-        image = heat.imshow(D, cmap=LinearSegmentedColormap.from_list('distance', DISTANCE_RAMP),
-                            interpolation='nearest')
+        image = heat.imshow(
+            D, cmap=LinearSegmentedColormap.from_list('distance', DISTANCE_RAMP), interpolation='nearest'
+        )
         for boundary in np.arange(1, n_clusters) * n_per_cluster - 0.5:
             heat.axhline(boundary, color=SURFACE, linewidth=2)
             heat.axvline(boundary, color=SURFACE, linewidth=2)
@@ -77,10 +78,18 @@ def plot(results: dict[str, np.ndarray]) -> None:
         wrong = np.array([majority[label] != true for label, true in zip(labels, y, strict=True)])
         mds.grid(False)
         for c, colour in zip(range(n_clusters), CLUSTER_COLOURS, strict=True):
-            mds.scatter(*embedding[y == c].T, s=40, color=colour, edgecolor=SURFACE, linewidth=1.5,
-                        label=cluster_names[c], zorder=3)
-        mds.scatter(*embedding[wrong].T, s=130, facecolor='none', edgecolor=INK, linewidth=1, zorder=4,
-                    label='misclustered')
+            mds.scatter(
+                *embedding[y == c].T,
+                s=40,
+                color=colour,
+                edgecolor=SURFACE,
+                linewidth=1.5,
+                label=cluster_names[c],
+                zorder=3,
+            )
+        mds.scatter(
+            *embedding[wrong].T, s=130, facecolor='none', edgecolor=INK, linewidth=1, zorder=4, label='misclustered'
+        )
         mds.set_xticks([])
         mds.set_yticks([])
         mds.spines[['left', 'bottom']].set_visible(False)

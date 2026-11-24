@@ -1,14 +1,15 @@
 """
 The Piccolo distance between two fitted models against series length, for the closest pair of each curated set
 (``figures/estimated_distance.png``). The spread of the estimates shrinks as the series grow and their mean
-approaches the true distance δ. At these lengths BIC still often picks lower orders than the true ones, most for
-the closest set, where an AR(1) fits both the ARMA(1,1) and the MA(1) process well; that pulls its estimate below δ.
+approaches the true distance δ. On short series BIC often picks lower orders than the true ones, so the estimates
+can be off either way.
 
 The estimates are saved to ``figures/distance_estimation.npz`` and later runs plot from them; ``--recompute`` fits
 again.
 
 Run with ``uv run --extra examples python examples/distance_estimation.py``.
 """
+
 import itertools
 from pathlib import Path
 
@@ -16,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from arimaclust import ARMADistance
-from arimaclust.data.generate import generate_clusters
+from arimaclust.data import generate_clusters
 from results import load_or_compute, parse_args
 from style import BAND_COLOURS, INK_SOFT, MINIMAL
 from synthetic import CURATED_SETS, min_separation
@@ -37,8 +38,7 @@ def compute() -> dict[str, np.ndarray]:
         pairs.append(f'{a} vs {b}')
         set_estimates = []
         for length in LENGTHS:
-            np.random.seed(length)
-            X, _ = generate_clusters([a, b], t_min=length, samples_per_cluster=N_PAIRS)
+            X, _ = generate_clusters([a, b], length, N_PAIRS, random_state=length)
             # one fit of all series; series k of the first process is paired with series k of the second
             D = ARMADistance(n_jobs=-1).fit_transform(X)
             set_estimates.append(D[np.arange(N_PAIRS), N_PAIRS + np.arange(N_PAIRS)])
@@ -57,18 +57,30 @@ def plot(results: dict[str, np.ndarray]) -> None:
     lengths, estimates = results['lengths'], results['estimates']
     with plt.rc_context(MINIMAL):
         fig, axes = plt.subplots(1, len(estimates), figsize=(15, 3.6), gridspec_kw={'wspace': 0.6})
-        for ax, band, delta, pair, set_estimates in zip(axes, results['bands'], results['deltas'], results['pairs'],
-                                                        estimates, strict=True):
+        for ax, band, delta, pair, set_estimates in zip(
+            axes, results['bands'], results['deltas'], results['pairs'], estimates, strict=True
+        ):
             delta = float(delta)  # a plain float prints as before, e.g. 0.801
             print(f'{band:>14}  closest pair {pair}')
             for length, length_estimates in zip(lengths, set_estimates, strict=True):
-                print(f'{band:>14}  T={length:<5} estimate {length_estimates.mean():.3f} ± '
-                      f'{length_estimates.std():.3f}  (δ={delta})')
+                print(
+                    f'{band:>14}  T={length:<5} estimate {length_estimates.mean():.3f} ± '
+                    f'{length_estimates.std():.3f}  (δ={delta})'
+                )
             means, sds = set_estimates.mean(axis=1), set_estimates.std(axis=1)
             ax.axhline(delta, color=INK_SOFT, linewidth=1)
-            ax.annotate(f'true δ = {delta}', (1.0, delta), xycoords=('axes fraction', 'data'), xytext=(4, 0),
-                        textcoords='offset points', ha='left', va='center', fontsize=7.5, color=INK_SOFT,
-                        annotation_clip=False)
+            ax.annotate(
+                f'true δ = {delta}',
+                (1.0, delta),
+                xycoords=('axes fraction', 'data'),
+                xytext=(4, 0),
+                textcoords='offset points',
+                ha='left',
+                va='center',
+                fontsize=7.5,
+                color=INK_SOFT,
+                annotation_clip=False,
+            )
             ax.fill_between(lengths, means - sds, means + sds, color=LINE, alpha=0.12, linewidth=0)
             ax.plot(lengths, means, color=LINE)
             ax.set_xscale('log')

@@ -42,6 +42,11 @@ extend-exclude = ["*.ipynb"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.format]
+quote-style = "single"
+# README code blocks keep their hand-aligned comments
+exclude = ["*.md"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["examples"]

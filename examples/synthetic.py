@@ -3,6 +3,7 @@ Synthetic ARMA cluster sets at a controlled separation δ, shared by the example
 
 δ is the smallest Piccolo distance (``tau=50``) between the processes that generate the clusters.
 """
+
 import itertools
 import math
 from collections.abc import Iterable
@@ -12,9 +13,9 @@ import numpy as np
 from sklearn.metrics import adjusted_mutual_info_score
 
 from arimaclust import ARMADistance, ConsistentClustering
-from arimaclust.autoarima.estimation import to_arma_process
-from arimaclust.data.generate import generate_clusters
+from arimaclust.data import generate_clusters
 from arimaclust.metrics import piccolo
+from arimaclust.modeling import ARIMA
 
 # (ar_params, ma_params), without the zero lag
 Params = tuple[list[float], list[float]]
@@ -39,6 +40,7 @@ def band_of(delta: float) -> str:
 
 class CuratedSet(NamedTuple):
     """Cluster-generating parameters whose smallest pairwise Piccolo distance (``tau=50``) is ``delta``."""
+
     band: str
     delta: float
     params: list[Params]
@@ -58,8 +60,8 @@ def min_separation(params: list[Params]) -> float:
     delta : float
         the separation δ of the set
     """
-    processes = [to_arma_process(*p) for p in params]
-    return min(piccolo(a, b, tau=TAU) for a, b in itertools.combinations(processes, 2))
+    models = [ARIMA(*p) for p in params]
+    return min(piccolo(a, b, tau=TAU) for a, b in itertools.combinations(models, 2))
 
 
 # one set per band, each mixing AR, MA and ARMA clusters; the deltas are recorded to 4 dp and checked in the tests
@@ -75,6 +77,7 @@ CURATED_SETS: tuple[CuratedSet, ...] = (
 EXAMPLE1: list[Params] = [([0.3, -0.2], [-0.5]), ([0.7, -0.4, 0.1], [0.5, -0.2])]
 # two processes whose AR(∞) representations are near: same MA part, AR parts 0.05 apart
 EXAMPLE2: list[Params] = [([0.3, -0.2], [-0.5]), ([0.25, -0.15], [-0.5])]
+
 
 def _lag_coefficients(rng: np.random.Generator, order: int) -> np.ndarray:
     """Coefficients after the leading 1 of a random (1 - r_1 B)...(1 - r_order B) with |r_i| <= MAX_ROOT_MODULUS."""
@@ -130,17 +133,19 @@ def generate_separated_params(n_clusters: int, delta: float, seed: int, max_draw
         if ``max_draws`` draws don't give ``n_clusters`` separated processes
     """
     rng = np.random.default_rng(seed)
-    kept, processes = [], []
+    kept, models = [], []
     for _ in range(max_draws):
         candidate = _draw_params(rng)
-        process = to_arma_process(*candidate)
-        if all(piccolo(process, other, tau=TAU) >= delta for other in processes):
+        model = ARIMA(*candidate)
+        if all(piccolo(model, other, tau=TAU) >= delta for other in models):
             kept.append(candidate)
-            processes.append(process)
+            models.append(model)
             if len(kept) == n_clusters:
                 return kept
-    raise RuntimeError(f'found {len(kept)} of {n_clusters} processes with pairwise Piccolo distance >= {delta} '
-                       f'after {max_draws} draws; lower delta or n_clusters, or raise max_draws')
+    raise RuntimeError(
+        f'found {len(kept)} of {n_clusters} processes with pairwise Piccolo distance >= {delta} '
+        f'after {max_draws} draws; lower delta or n_clusters, or raise max_draws'
+    )
 
 
 def clustering_scores(params: list[Params], length: int, n_per_cluster: int, seeds: Iterable[int]) -> np.ndarray:
@@ -168,9 +173,7 @@ def clustering_scores(params: list[Params], length: int, n_per_cluster: int, see
     """
     scores = []
     for seed in seeds:
-        # statsmodels draws the samples from the global numpy random state
-        np.random.seed(seed)
-        X, y = generate_clusters(params, t_min=length, samples_per_cluster=n_per_cluster)
+        X, y = generate_clusters(params, length, n_per_cluster, random_state=seed)
         labels = ConsistentClustering(n_clusters=len(params), distance=ARMADistance(n_jobs=-1)).fit_predict(X)
         scores.append(adjusted_mutual_info_score(y, labels))
     return np.array(scores)

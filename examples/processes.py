@@ -4,13 +4,14 @@ AR(∞) coefficients π₁…π_tau that the Piccolo distance compares (``figure
 
 Run with ``uv run --extra examples python examples/processes.py``.
 """
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from arimaclust.data.generate import generate_arma_sample
-from arimaclust.metrics import arma2ar
+from arimaclust.data import generate_arma_sample
+from arimaclust.modeling import ARIMA
 from style import AXIS, CLUSTER_COLOURS, MINIMAL
 from synthetic import CURATED_SETS, TAU
 
@@ -31,12 +32,16 @@ def _save(fig: plt.Figure, name: str) -> None:
 
 def _sample_series() -> None:
     """Draw one sample series per cluster of each curated set, offset vertically."""
-    np.random.seed(0)
+    rng = np.random.default_rng(0)
     fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True)
     for ax, curated in zip(axes.flat, CURATED_SETS, strict=True):
         for k, ((ar, ma), colour) in enumerate(zip(curated.params, CLUSTER_COLOURS, strict=True)):
-            ax.plot(generate_arma_sample(ar, ma, LENGTH) - k * OFFSET, color=colour, linewidth=0.8,
-                    label=f'AR {ar}, MA {ma}')
+            ax.plot(
+                generate_arma_sample(ar, ma, LENGTH, random_state=rng) - k * OFFSET,
+                color=colour,
+                linewidth=0.8,
+                label=f'AR {ar}, MA {ma}',
+            )
         ax.set_yticks([])
         # headroom for the legend above the top series
         ax.set_ylim(top=ax.get_ylim()[1] + OFFSET)
@@ -54,9 +59,7 @@ def _ar_coefficients() -> None:
     fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True)
     for ax, curated in zip(axes.flat, CURATED_SETS, strict=True):
         for (ar, ma), colour in zip(curated.params, CLUSTER_COLOURS, strict=True):
-            # arma2ar gives the lag polynomial 1, -π₁, -π₂, …
-            pi = -arma2ar((ar, ma), tau=TAU + 1)[1:]
-            ax.plot(lags, pi, color=colour, marker='.', linewidth=1, label=f'AR {ar}, MA {ma}')
+            ax.plot(lags, ARIMA(ar, ma).pi(TAU), color=colour, marker='.', linewidth=1, label=f'AR {ar}, MA {ma}')
         ax.axhline(0, color=AXIS, linewidth=0.8)
         # log lags, so the first few, where these low-order processes differ, are not squeezed together
         ax.set_xscale('log')
@@ -68,8 +71,9 @@ def _ar_coefficients() -> None:
         ax.set_xlabel('lag k')
     for ax in axes[:, 0]:
         ax.set_ylabel('π_k')
-    fig.suptitle(f'true AR(∞) coefficients π₁…π_{TAU} of each cluster; δ is the smallest Euclidean distance '
-                 'between them')
+    fig.suptitle(
+        f'true AR(∞) coefficients π₁…π_{TAU} of each cluster; δ is the smallest Euclidean distance between them'
+    )
     _save(fig, 'ar_coefficients.png')
 
 
@@ -78,6 +82,7 @@ def main() -> None:
     with plt.rc_context(MINIMAL):
         _sample_series()
         _ar_coefficients()
+
 
 if __name__ == '__main__':
     main()

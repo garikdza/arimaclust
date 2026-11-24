@@ -1,5 +1,4 @@
-from arimaclust.distance import ARMADistance
-from arimaclust.models.centroid import ConsistentClustering
-from arimaclust.models.neighbours import ThresholdClustering
+from arimaclust.clustering import ConsistentClustering, ThresholdClustering
+from arimaclust.metrics import ARMADistance
 
 __all__ = ['ARMADistance', 'ConsistentClustering', 'ThresholdClustering']

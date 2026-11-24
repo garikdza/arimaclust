@@ -1,13 +1,20 @@
 import functools
 import logging
+import numbers
 import time
-
-import pandas as pd
 
 logger = logging.getLogger('arimaclust')
 
 
+def check_tau(tau: object) -> None:
+    """Raise a ``ValueError`` unless ``tau``, the number of AR(inf) coefficients compared, is an integer >= 1."""
+    if not isinstance(tau, numbers.Integral) or isinstance(tau, bool) or tau < 1:
+        raise ValueError(f'tau must be an integer >= 1, got {tau!r}')
+
+
 def timeit(func):
+    """Log at debug level how long each call of ``func`` takes."""
+
     @functools.wraps(func)
     def timeit_wrapper(*args, **kwargs):
         start_time = time.perf_counter()
@@ -16,11 +23,3 @@ def timeit(func):
         return result
 
     return timeit_wrapper
-
-
-def get_equal_time_periods(start_date, end_date, num_periods):
-    """Split ``[start_date, end_date]`` into consecutive windows of ``num_periods`` months."""
-    date_range = pd.date_range(start=start_date, end=end_date, freq=pd.DateOffset(months=num_periods))
-    start_dates = date_range[:-1]
-    end_dates = date_range[1:]
-    return [(s.strftime('%Y-%m-%d'), e.strftime('%Y-%m-%d')) for s, e in zip(start_dates, end_dates, strict=False)]
