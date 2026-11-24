@@ -1,26 +1,46 @@
-# arimaclust: consistent clustering of ARIMA time series
+# arimaclust
 
 [![codecov](https://codecov.io/gh/garikdza/arimaclust/branch/main/graph/badge.svg)](https://codecov.io/gh/garikdza/arimaclust)
+[![Python](https://img.shields.io/badge/python-%E2%89%A53.10-blue.svg)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Each series gets an ARMA model, selected by BIC with `pmdarima.auto_arima`. Series are compared through the
-[Piccolo (1990)](https://doi.org/10.1111/j.1467-9892.1990.tb00048.x) AR distance: the Euclidean distance between
-the AR(∞) coefficients of the fitted models. They are then clustered with farthest-point initialisation and
-nearest-centre assignment ([Khaleghi et al., JMLR 2016](https://www.jmlr.org/papers/v17/khaleghi16a.html)). When
-the maximum orders and the number of clusters are known, this procedure is weakly asymptotically consistent
-(Adamyan, *Journal of Contemporary Mathematical Analysis* 58(3), 2023).
+arimaclust is a Python library for model-based time series clustering.
 
 <p align="center">
   <img src="examples/figures/accuracy_vs_length.png" width="640"
-       alt="Clustering accuracy rising to 1 with series length, sooner for clusters that are further apart">
+       alt="AMI against series length for four synthetic three-cluster sets, rising to 1 sooner for larger separation">
 </p>
-<p align="center"><sub>Clustering accuracy (AMI) against series length for four curated three-cluster sets, from the
-closest (δ &lt; 0.2) to the furthest apart (δ ≥ 0.6): accuracy goes to 1 as the series grow, sooner when the
-processes are further apart. See <a href="#examples">Examples</a>.</sub></p>
+<p align="center"><sub>AMI against series length on four synthetic three-cluster sets of separation δ, the smallest
+Piccolo distance between the generating processes.</sub></p>
+
+## Features
+
+**Distances** between fitted invertible models, on the first `tau` AR(∞) coefficients (`ARMADistance(metric=...)`):
+
+| `metric` | distance | reference |
+|---|---|---|
+| `'piccolo'` (default) | Euclidean distance between the π-weights | [Piccolo (1990)](https://doi.org/10.1111/j.1467-9892.1990.tb00048.x) |
+| `'cepstral'` | Euclidean distance between the LPC cepstral coefficients | [Kalpakis et al. (2001)](https://doi.org/10.1109/ICDM.2001.989529) |
+| `'mahalanobis'` | Wald statistic on the π-weights, weighted by their estimated covariance | [Maharaj (1996)](https://doi.org/10.1080/00949659608811737) |
+
+**Clustering** on the distance matrix:
+
+- `ConsistentClustering(n_clusters)`: farthest-point initialisation and nearest-centre assignment
+  ([Khaleghi et al., 2016](https://www.jmlr.org/papers/v17/khaleghi16a.html)). With the Piccolo distance and BIC
+  order selection it is weakly asymptotically consistent for ARMA processes
+  ([Adamyan, 2023](https://doi.org/10.3103/S1068362323030020)).
+- `ThresholdClustering(alpha)`: connected components of the graph linking pairs at distance ≤ `alpha`, for an
+  unknown number of clusters.
+
+All are scikit-learn estimators. The clusterers fit an `ARMADistance` on raw series, or take `distance='precomputed'`.
+Input is a list of 1-D arrays (lengths may differ), a 2-D array with one series per row, or a DataFrame with one series
+per column. `d` sets the differencing order (`None` selects it per series); the factor (1 − B)^d is kept in the
+AR(∞) representation, so series with different `d` stay apart. `arimaclust.data` simulates labelled ARMA clusters.
 
 ## Install
 
 ```bash
-uv sync
+pip install git+https://github.com/garikdza/arimaclust
 ```
 
 ## Quickstart
@@ -29,96 +49,55 @@ uv sync
 from arimaclust import ARMADistance, ConsistentClustering
 from arimaclust.data import generate_clusters
 
-# one (AR coefficients, MA coefficients) pair per cluster: an AR(1), an AR(2) and an MA(1)
+# one (AR, MA) coefficient pair per cluster: an AR(1), an AR(2) and an MA(1)
 params = [([-0.6], []), ([-0.2, 0.7], []), ([], [0.2])]
 X, y = generate_clusters(params, length=500, n_per_cluster=20, random_state=0)
-model = ConsistentClustering(n_clusters=len(params),
-                             distance=ARMADistance(max_p=3, max_q=3, d=0, tau=10, n_jobs=-1)).fit(X)
+distance = ARMADistance(max_p=3, max_q=3, d=0, metric='piccolo', tau=50, n_jobs=-1)
+```
+
+From raw series, the clusterer fits the distance itself:
+
+```python
+model = ConsistentClustering(n_clusters=3, distance=distance).fit(X)
 model.labels_                  # cluster per series
+model.distance_.models_        # fitted ARIMA per series
 model.distance_.dist_matrix_   # pairwise Piccolo distances
 ```
 
-The public API is the three scikit-learn estimators `arimaclust` exports at the top level, `ARMADistance`,
-`ConsistentClustering` and `ThresholdClustering`, and the synthetic data generators in `arimaclust.data`,
-`generate_arma_sample` and `generate_clusters`. Other modules are internal. A series collection can be a list of
-1-D arrays (lengths may differ), a 2D array with one series per row, or a DataFrame with one series per column (NaNs
-are dropped). Pass `distance='precomputed'` to cluster a ready distance matrix instead.
+From a precomputed distance matrix, for example to try several clusterers on one set of fits:
 
-`ARMADistance` fits ARIMA(p, d, q) models with `d=0` by default. A fixed `d=1` differences every series once, and
-`d=None` lets `auto_arima` choose `d` for each series. The differencing stays in the AR(∞) coefficients the distance
-compares, so a random walk and white noise are 1 apart, not 0. When the series form fewer distinct groups than
-`n_clusters`, for example when short series all get the same fitted model, `ConsistentClustering` warns and returns
-the clusters it found.
+```python
+D = distance.fit_transform(X)  # (60, 60) Piccolo distances
+labels = ConsistentClustering(n_clusters=3, distance='precomputed').fit_predict(D)
+```
 
 ## Examples
 
-The `examples/` scripts test the method on synthetic data, where the true clusters are known. Each cluster is a group
-of series drawn from one ARMA process. The separation δ of a set of processes is the smallest Piccolo distance
-(`tau=50`) between any two of them: the smaller δ, the harder some clusters are to tell apart. `examples/synthetic.py`
-holds four curated three-cluster sets, one per δ band (δ < 0.2, 0.2 ≤ δ < 0.4, 0.4 ≤ δ < 0.6 and δ ≥ 0.6), and
-`generate_separated_params`, which draws new sets with a given δ.
+[`examples/`](examples) evaluates the method on synthetic sets with controlled separation δ: curated three-cluster
+sets, one per δ band, and random two-cluster sets drawn at a given δ.
 
-### Procedure
+<p align="center">
+  <img src="examples/figures/estimated_distance.png" width="800"
+       alt="Estimated Piccolo distance against series length for the closest pair of each curated set">
+</p>
+<p align="center"><sub>Estimated Piccolo distance against series length for the closest pair of processes in each
+curated set (mean ± 1 sd over 20 pairs); the line is the true δ.</sub></p>
 
-Every example follows the same steps:
-
-1. **Draw the series.** `generate_clusters` simulates a number of series of length T from each process.
-2. **Fit a model to each series.** `ARMADistance` runs `pmdarima.auto_arima` with AR and MA orders up to 3, and
-   selects the orders by BIC.
-3. **Estimate the distances.** The Piccolo distance between two fitted models is the Euclidean distance between their
-   first 50 AR(∞) coefficients.
-4. **Cluster.** `ConsistentClustering` gets the distance matrix and the true number of clusters.
-5. **Score.** The adjusted mutual information (AMI) compares the clusters found with the true ones: 1 is a perfect
-   match, and about 0 is no better than chance.
-
-### Model fitting and distance estimation
-
-The clustering is only as good as the estimated distances. `distance_estimation.py` takes the closest pair of
-processes in each curated set, draws 20 pairs of series at each length, and compares the estimated distance with
-the true δ.
-
-![Estimated Piccolo distance against series length for the closest pair of each curated set, with the true δ as a line](examples/figures/estimated_distance.png)
-
-The line is the mean of the 20 estimates and the shaded band is ±1 standard deviation. The spread shrinks as the
-series grow: for the δ ≥ 0.6 pair the standard deviation falls from 0.29 at T = 50 to 0.026 at T = 1600, and at
-T = 1600 every pair's mean is within 0.01 of its δ. Short series give noisy estimates that can be off either way,
-because BIC often picks lower orders than the true ones: the 0.4 ≤ δ < 0.6 pair stays below δ up to T = 800.
-
-### Clustering accuracy
-
-The figure at the top comes from `accuracy_vs_length.py`. Each point is the mean AMI over eight draws of three
-clusters with ten series each, and the shaded band is ±1 standard deviation. Accuracy rises with the series length
-T, and sooner for larger δ: the δ ≥ 0.6 set is clustered perfectly from T = 200, and the two middle sets from T = 400
-and T = 800. The δ < 0.2 set reaches only about 0.48 at T = 1600: its models are close enough that much longer series
-are needed to tell them apart.
-
-![Clustering accuracy rising with the separation δ between the processes, at series length 200](examples/figures/accuracy_vs_delta.png)
-
-At a fixed length, T = 200, accuracy rises with δ. `accuracy_vs_delta.py` draws six two-cluster sets per band with
-`generate_separated_params`. Each dot is one set (the mean AMI of four draws), and each bar is the mean of its band.
-The spread within a band is wide, because δ is not the only thing that makes two processes hard to tell apart from
-short series.
-
-### Running the examples
-
-The scripts need matplotlib, from the `examples` extra, and write their figures to `examples/figures/`. The
-slowest, `accuracy_vs_length.py`, fits about 6,000 models and takes several minutes on a multi-core machine.
-The four scripts that fit models save their raw results next to the figures, as `examples/figures/<script>.npz`, and
-later runs redraw the figures from that file in seconds. Pass `--recompute` to fit again, for example after changing
-a script's settings or a curated set.
+<p align="center">
+  <img src="examples/figures/accuracy_vs_delta.png" width="640"
+       alt="AMI against separation δ for random two-cluster sets at series length 200">
+</p>
+<p align="center"><sub>AMI against δ for random two-cluster sets at T = 200 (each dot a set, bars the band
+means).</sub></p>
 
 ```bash
 uv sync --extra examples
-uv run --extra examples python examples/accuracy_vs_length.py   # accuracy_vs_length.png (the figure at the top)
-uv run --extra examples python examples/accuracy_vs_delta.py    # accuracy_vs_delta.png: accuracy against δ
-uv run --extra examples python examples/distance_matrix.py      # distance_matrix.png: heatmap and MDS embedding
-uv run --extra examples python examples/distance_estimation.py  # estimated_distance.png: fitted against true δ
-uv run --extra examples python examples/processes.py            # sample_series.png, ar_coefficients.png
+uv run --extra examples python examples/accuracy_vs_length.py   # also accuracy_vs_delta.py, distance_estimation.py, ...
 ```
 
-## Citation
+Each script caches its fits as `examples/figures/<script>.npz`; `--recompute` refits.
 
-If you use arimaclust, please cite:
+## Citation
 
 G. Adamyan, "Weakly consistent offline clustering of ARMA processes", *Journal of Contemporary Mathematical
 Analysis*, 58(3), 183–190, 2023. https://doi.org/10.3103/S1068362323030020 (open copy in *Izvestiya NAN Armenii*:
@@ -128,17 +107,20 @@ https://arar.sci.am//Content/359562/3-13.pdf)
 
 - G. Adamyan, "Model-based time series clustering", PhD thesis, Yerevan State University, 2023.
   https://www.ysu.am/en/councils/dissertations/52425
-- G. Adamyan, "Model-based clustering of foreign exchange market", *Proceedings of the Engineering Academy of
-  Armenia*, 20(1), 24–33, 2023.
 - D. Piccolo, "A distance measure for classifying ARIMA models", *Journal of Time Series Analysis*, 11(2),
   153–164, 1990. https://doi.org/10.1111/j.1467-9892.1990.tb00048.x
-- M. Corduas, D. Piccolo, "Time series clustering and classification by the autoregressive metric",
-  *Computational Statistics & Data Analysis*, 52(4), 1860–1872, 2008. https://doi.org/10.1016/j.csda.2007.06.001
+- K. Kalpakis, D. Gada, V. Puttagunta, "Distance measures for effective clustering of ARIMA time-series",
+  *Proceedings of the 2001 IEEE International Conference on Data Mining*, 273–280, 2001.
+  https://doi.org/10.1109/ICDM.2001.989529
+- E. A. Maharaj, "A significance test for classifying ARMA models", *Journal of Statistical Computation and
+  Simulation*, 54(4), 305–331, 1996. https://doi.org/10.1080/00949659608811737
 - A. Khaleghi, D. Ryabko, J. Mary, P. Preux, "Consistent algorithms for clustering time series", *Journal of
   Machine Learning Research*, 17(3), 1–32, 2016. https://www.jmlr.org/papers/v17/khaleghi16a.html
+- M. Corduas, D. Piccolo, "Time series clustering and classification by the autoregressive metric",
+  *Computational Statistics & Data Analysis*, 52(4), 1860–1872, 2008. https://doi.org/10.1016/j.csda.2007.06.001
 - J.-M. Bardet, K. Kamila, W. Kengne, "Consistent model selection criteria and goodness-of-fit test for common
   time series models", *Electronic Journal of Statistics*, 14(1), 2009–2052, 2020. https://doi.org/10.1214/20-EJS1709
 
 ## License
 
-MIT
+Released under the [MIT License](LICENSE), © 2023 [garikdza](https://github.com/garikdza).
