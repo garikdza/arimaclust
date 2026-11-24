@@ -72,8 +72,16 @@ def test_differenced_gives_the_arma_part_with_the_differenced_series():
 def test_fit_keeps_order_parameters_and_series():
     x = generate_arma_sample([0.5], [0.3], 300, random_state=0)
     model = ARIMA.fit(x, max_p=2, max_q=2, d=0)
-    fitted = pmdarima.auto_arima(x, max_p=2, max_q=2, d=0, information_criterion='bic', error_action='ignore',
-                                 stepwise=True, suppress_warnings=True)
+    fitted = pmdarima.auto_arima(
+        x,
+        max_p=2,
+        max_q=2,
+        d=0,
+        information_criterion='bic',
+        error_action='ignore',
+        stepwise=True,
+        suppress_warnings=True,
+    )
     assert model.order == fitted.order
     np.testing.assert_allclose(model.ar, fitted.arparams())
     np.testing.assert_allclose(model.ma, fitted.maparams())

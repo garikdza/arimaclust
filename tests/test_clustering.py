@@ -12,9 +12,11 @@ NOISE = np.random.default_rng(0).standard_normal(80)
 
 def _three_series() -> list[np.ndarray]:
     rng = np.random.default_rng(1)
-    return [generate_arma_sample([0.8], [], 120, random_state=rng),
-            generate_arma_sample([0.8], [], 100, random_state=rng),
-            generate_arma_sample([-0.5], [], 90, random_state=rng)]
+    return [
+        generate_arma_sample([0.8], [], 120, random_state=rng),
+        generate_arma_sample([0.8], [], 100, random_state=rng),
+        generate_arma_sample([-0.5], [], 90, random_state=rng),
+    ]
 
 
 def test_consistent_clustering_farthest_point_on_hand_matrix():
@@ -33,8 +35,9 @@ def test_consistent_clustering_warns_when_too_few_distinct_groups():
         model = ConsistentClustering(n_clusters=3, distance='precomputed').fit(D)
     np.testing.assert_array_equal(model.centers_, [0, 2])
     np.testing.assert_array_equal(model.labels_, [0, 0, 1, 1])
-    np.testing.assert_array_equal(ConsistentClustering(n_clusters=2, distance='precomputed').fit(D).labels_,
-                                  [0, 0, 1, 1])
+    np.testing.assert_array_equal(
+        ConsistentClustering(n_clusters=2, distance='precomputed').fit(D).labels_, [0, 0, 1, 1]
+    )
 
 
 def test_threshold_clustering_links_chains_on_precomputed():
@@ -88,25 +91,57 @@ def test_nested_distance_params_are_settable():
     assert model.distance_.tau == 5
 
 
-@pytest.mark.parametrize(('model', 'X', 'match'), [
-    pytest.param(ConsistentClustering(distance='precomputed'), np.ones((3, 2)), 'square', id='c'),
-    pytest.param(ConsistentClustering(n_clusters=4, distance='precomputed'), np.zeros((3, 3)),
-                 'n_clusters=4.*n_samples=3', id='d'),
-    pytest.param(ConsistentClustering(n_clusters=0, distance='precomputed'), np.zeros((3, 3)),
-                 'n_clusters must be an integer', id='n_clusters=0'),
-    pytest.param(ConsistentClustering(distance=ARMADistance(tau=0)), [NOISE], 'tau must be an integer >= 1, got 0',
-                 id='tau=0'),
-    pytest.param(ThresholdClustering(distance='precomputed'), np.zeros((3, 3)), 'alpha', id='alpha=None'),
-    pytest.param(ThresholdClustering(alpha=1.0, distance='euclidean'), np.zeros((3, 3)), 'distance must be',
-                 id='distance=euclidean'),
-    pytest.param(ThresholdClustering(alpha=-0.1, distance='precomputed'), np.zeros((3, 3)), 'alpha must be a number',
-                 id='alpha=-0.1'),
-    pytest.param(ThresholdClustering(alpha='1', distance='precomputed'), np.zeros((3, 3)), 'alpha must be a number',
-                 id='alpha=str'),
-    pytest.param(ThresholdClustering(alpha=float('nan'), distance='precomputed'), np.zeros((3, 3)),
-                 'alpha must be a number', id='alpha=nan'),
-])
-def test_bad_clusterer_input_raises(model: ConsistentClustering | ThresholdClustering, X: np.ndarray | list,
-                                    match: str):
+@pytest.mark.parametrize(
+    ('model', 'X', 'match'),
+    [
+        pytest.param(ConsistentClustering(distance='precomputed'), np.ones((3, 2)), 'square', id='c'),
+        pytest.param(
+            ConsistentClustering(n_clusters=4, distance='precomputed'),
+            np.zeros((3, 3)),
+            'n_clusters=4.*n_samples=3',
+            id='d',
+        ),
+        pytest.param(
+            ConsistentClustering(n_clusters=0, distance='precomputed'),
+            np.zeros((3, 3)),
+            'n_clusters must be an integer',
+            id='n_clusters=0',
+        ),
+        pytest.param(
+            ConsistentClustering(distance=ARMADistance(tau=0)),
+            [NOISE],
+            'tau must be an integer >= 1, got 0',
+            id='tau=0',
+        ),
+        pytest.param(ThresholdClustering(distance='precomputed'), np.zeros((3, 3)), 'alpha', id='alpha=None'),
+        pytest.param(
+            ThresholdClustering(alpha=1.0, distance='euclidean'),
+            np.zeros((3, 3)),
+            'distance must be',
+            id='distance=euclidean',
+        ),
+        pytest.param(
+            ThresholdClustering(alpha=-0.1, distance='precomputed'),
+            np.zeros((3, 3)),
+            'alpha must be a number',
+            id='alpha=-0.1',
+        ),
+        pytest.param(
+            ThresholdClustering(alpha='1', distance='precomputed'),
+            np.zeros((3, 3)),
+            'alpha must be a number',
+            id='alpha=str',
+        ),
+        pytest.param(
+            ThresholdClustering(alpha=float('nan'), distance='precomputed'),
+            np.zeros((3, 3)),
+            'alpha must be a number',
+            id='alpha=nan',
+        ),
+    ],
+)
+def test_bad_clusterer_input_raises(
+    model: ConsistentClustering | ThresholdClustering, X: np.ndarray | list, match: str
+):
     with pytest.raises(ValueError, match=match):
         model.fit(X)

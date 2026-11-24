@@ -27,14 +27,23 @@ def test_top_level_exports():
 
 def _three_series() -> list[np.ndarray]:
     rng = np.random.default_rng(1)
-    return [generate_arma_sample([0.8], [], 120, random_state=rng),
-            generate_arma_sample([0.8], [], 100, random_state=rng),
-            generate_arma_sample([-0.5], [], 90, random_state=rng)]
+    return [
+        generate_arma_sample([0.8], [], 120, random_state=rng),
+        generate_arma_sample([0.8], [], 100, random_state=rng),
+        generate_arma_sample([-0.5], [], 90, random_state=rng),
+    ]
 
 
 def test_arma_distance_default_params_and_clone():
-    assert ARMADistance().get_params() == {'max_p': 3, 'max_q': 3, 'd': 0, 'metric': 'piccolo', 'tau': 50,
-                                           'arima_kwargs': None, 'n_jobs': None}
+    assert ARMADistance().get_params() == {
+        'max_p': 3,
+        'max_q': 3,
+        'd': 0,
+        'metric': 'piccolo',
+        'tau': 50,
+        'arima_kwargs': None,
+        'n_jobs': None,
+    }
     cloned = clone(ARMADistance(arima_kwargs={'stepwise': False}))
     assert cloned.get_params()['arima_kwargs'] == {'stepwise': False}
 
@@ -97,12 +106,18 @@ def test_mahalanobis_without_differencing_order_raises():
         ARMADistance(metric='mahalanobis', d=None).fit(_three_series())
 
 
-@pytest.mark.parametrize(('X', 'match'), [
-    pytest.param([NOISE, NOISE[:50]], 'Series 1 has 50 observations .*tau=50', id='list'),
-    pytest.param(pd.DataFrame({'a': pd.Series(NOISE), 'b': pd.Series(NOISE[:50])}),
-                 "Series 'b' has 50 observations", id='dataframe'),
-    pytest.param([NOISE, np.ones(80)], 'Series 1 is constant', id='constant'),
-])
+@pytest.mark.parametrize(
+    ('X', 'match'),
+    [
+        pytest.param([NOISE, NOISE[:50]], 'Series 1 has 50 observations .*tau=50', id='list'),
+        pytest.param(
+            pd.DataFrame({'a': pd.Series(NOISE), 'b': pd.Series(NOISE[:50])}),
+            "Series 'b' has 50 observations",
+            id='dataframe',
+        ),
+        pytest.param([NOISE, np.ones(80)], 'Series 1 is constant', id='constant'),
+    ],
+)
 def test_mahalanobis_short_or_constant_series_names_series(X: list | pd.DataFrame, match: str):
     with pytest.raises(ValueError, match=match):
         ARMADistance(metric='mahalanobis', tau=50).fit(X)
@@ -125,8 +140,9 @@ def test_bad_tau_raises_before_series_checks(metric: str, tau: object):
 @pytest.mark.parametrize('metric', METRICS)
 def test_parallel_fit_matches_serial(metric: str):
     X = _three_series()
-    np.testing.assert_array_equal(ARMADistance(metric=metric, n_jobs=2).fit_transform(X),
-                                  ARMADistance(metric=metric).fit_transform(X))
+    np.testing.assert_array_equal(
+        ARMADistance(metric=metric, n_jobs=2).fit_transform(X), ARMADistance(metric=metric).fit_transform(X)
+    )
 
 
 def _orders(distance: ARMADistance) -> list[tuple[int, int]]:
@@ -136,8 +152,10 @@ def _orders(distance: ARMADistance) -> list[tuple[int, int]]:
 def _two_processes_sample() -> list[np.ndarray]:
     # a draw on which AIC picks a larger model than BIC for the first series
     rng = np.random.default_rng(5)
-    return [generate_arma_sample([0.8], [], 300, random_state=rng),
-            generate_arma_sample([-0.6], [0.3], 250, random_state=rng)]
+    return [
+        generate_arma_sample([0.8], [], 300, random_state=rng),
+        generate_arma_sample([-0.6], [0.3], 250, random_state=rng),
+    ]
 
 
 def test_arima_kwargs_reach_auto_arima():
@@ -169,7 +187,7 @@ def test_differencing_order_separates_random_walk_from_noise(metric: str):
     noise, walk = rng.standard_normal(500), np.cumsum(rng.standard_normal(500))
     distance = ARMADistance(d=None, metric=metric).fit([noise, walk])
     assert [model.d for model in distance.models_] == [0, 1]
-    expected = 1.0 if metric == 'piccolo' else np.sqrt(sum(1 / n ** 2 for n in range(1, 51)))
+    expected = 1.0 if metric == 'piccolo' else np.sqrt(sum(1 / n**2 for n in range(1, 51)))
     assert distance.dist_matrix_[0, 1] == pytest.approx(expected)
 
 
@@ -209,10 +227,13 @@ class _FakeArima:
         return np.array([self.ma])
 
 
-@pytest.mark.parametrize(('X', 'label'), [
-    pytest.param([np.zeros(50), np.zeros(60)], '1', id='list'),
-    pytest.param(pd.DataFrame({'a': pd.Series(np.zeros(50)), 'b': pd.Series(np.zeros(60))}), "'b'", id='dataframe'),
-])
+@pytest.mark.parametrize(
+    ('X', 'label'),
+    [
+        pytest.param([np.zeros(50), np.zeros(60)], '1', id='list'),
+        pytest.param(pd.DataFrame({'a': pd.Series(np.zeros(50)), 'b': pd.Series(np.zeros(60))}), "'b'", id='dataframe'),
+    ],
+)
 def test_non_invertible_fit_names_series(monkeypatch: pytest.MonkeyPatch, X: list | pd.DataFrame, label: str):
     # an MA coefficient of 2 puts the MA root inside the unit circle
     monkeypatch.setattr(pmdarima, 'auto_arima', lambda x, **kwargs: _FakeArima(ma=2.0 if len(x) == 60 else 0.3))
@@ -220,14 +241,17 @@ def test_non_invertible_fit_names_series(monkeypatch: pytest.MonkeyPatch, X: lis
         ARMADistance().fit_transform(X)
 
 
-@pytest.mark.parametrize(('X', 'match'), [
-    pytest.param([np.zeros(50)], 'at least 2 series', id='a'),
-    pytest.param(np.array([np.zeros(50), np.r_[np.zeros(49), np.nan]]), 'Series 1 contains NaN', id='b-array'),
-    pytest.param([np.zeros(50), np.r_[np.zeros(20), np.nan, np.zeros(29)]], 'Series 1 contains NaN', id='b-list'),
-    pytest.param([np.zeros(50), np.zeros((5, 10))], 'must be 1-D', id='e'),
-    pytest.param([np.zeros(50), np.array([])], 'Series 1 is empty', id='empty-list'),
-    pytest.param(pd.DataFrame({'a': np.zeros(50), 'b': np.nan}), "Series 'b' is empty", id='empty-dataframe'),
-])
+@pytest.mark.parametrize(
+    ('X', 'match'),
+    [
+        pytest.param([np.zeros(50)], 'at least 2 series', id='a'),
+        pytest.param(np.array([np.zeros(50), np.r_[np.zeros(49), np.nan]]), 'Series 1 contains NaN', id='b-array'),
+        pytest.param([np.zeros(50), np.r_[np.zeros(20), np.nan, np.zeros(29)]], 'Series 1 contains NaN', id='b-list'),
+        pytest.param([np.zeros(50), np.zeros((5, 10))], 'must be 1-D', id='e'),
+        pytest.param([np.zeros(50), np.array([])], 'Series 1 is empty', id='empty-list'),
+        pytest.param(pd.DataFrame({'a': np.zeros(50), 'b': np.nan}), "Series 'b' is empty", id='empty-dataframe'),
+    ],
+)
 def test_bad_series_input_raises(X: ArrayLike, match: str):
     with pytest.raises(ValueError, match=match):
         ARMADistance().fit(X)

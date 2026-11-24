@@ -18,11 +18,14 @@ def test_generate_clusters_same_count_for_every_cluster():
     assert len(X) == 4
 
 
-@pytest.mark.parametrize(('n_per_cluster', 'error', 'match'), [
-    pytest.param('3', TypeError, 'int or a sequence', id='string'),
-    pytest.param(2.0, TypeError, 'int or a sequence', id='float'),
-    pytest.param([2], ValueError, '1 counts for 2 clusters', id='wrong-length'),
-])
+@pytest.mark.parametrize(
+    ('n_per_cluster', 'error', 'match'),
+    [
+        pytest.param('3', TypeError, 'int or a sequence', id='string'),
+        pytest.param(2.0, TypeError, 'int or a sequence', id='float'),
+        pytest.param([2], ValueError, '1 counts for 2 clusters', id='wrong-length'),
+    ],
+)
 def test_generate_clusters_rejects_bad_counts(n_per_cluster: object, error: type[Exception], match: str):
     with pytest.raises(error, match=match):
         generate_clusters(EXAMPLE1, 30, n_per_cluster)
@@ -52,6 +55,6 @@ def test_burnin_starts_series_in_the_stationary_distribution():
     rng = np.random.default_rng(0)
     first = np.array([generate_arma_sample([phi], [], 1, burnin=500, random_state=rng)[0] for _ in range(n)])
     no_burnin = np.array([generate_arma_sample([phi], [], 1, burnin=0, random_state=rng)[0] for _ in range(n)])
-    stationary_var = 1 / (1 - phi ** 2)
+    stationary_var = 1 / (1 - phi**2)
     assert stats.kstest(first / np.sqrt(stationary_var), 'norm').pvalue > 0.01
     assert no_burnin.var() == pytest.approx(1, rel=0.15)

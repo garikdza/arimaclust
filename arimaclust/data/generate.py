@@ -9,8 +9,13 @@ from arimaclust.modeling import ARIMA
 BURNIN = 100
 
 
-def generate_arma_sample(ar_params: ArrayLike, ma_params: ArrayLike, length: int, burnin: int = BURNIN,
-                         random_state: int | np.random.Generator | None = None) -> np.ndarray:
+def generate_arma_sample(
+    ar_params: ArrayLike,
+    ma_params: ArrayLike,
+    length: int,
+    burnin: int = BURNIN,
+    random_state: int | np.random.Generator | None = None,
+) -> np.ndarray:
     """
     Draw one series from a stationary ARMA process with standard Gaussian noise.
 
@@ -34,12 +39,17 @@ def generate_arma_sample(ar_params: ArrayLike, ma_params: ArrayLike, length: int
         the series, of shape ``(length,)``
     """
     rng = np.random.default_rng(random_state)
-    return ARIMA(ar_params, ma_params).arma_process.generate_sample(nsample=length, burnin=burnin,
-                                                                            distrvs=rng.standard_normal)
+    return ARIMA(ar_params, ma_params).arma_process.generate_sample(
+        nsample=length, burnin=burnin, distrvs=rng.standard_normal
+    )
 
 
-def generate_clusters(params: Sequence[tuple[ArrayLike, ArrayLike]], length: int, n_per_cluster: int | Sequence[int],
-                      random_state: int | np.random.Generator | None = None) -> tuple[list[np.ndarray], np.ndarray]:
+def generate_clusters(
+    params: Sequence[tuple[ArrayLike, ArrayLike]],
+    length: int,
+    n_per_cluster: int | Sequence[int],
+    random_state: int | np.random.Generator | None = None,
+) -> tuple[list[np.ndarray], np.ndarray]:
     """
     Draw a labelled clustering data set: each cluster is a group of series from one ARMA process.
 
@@ -69,7 +79,10 @@ def generate_clusters(params: Sequence[tuple[ArrayLike, ArrayLike]], length: int
         raise TypeError(f'n_per_cluster must be an int or a sequence of ints, got {n_per_cluster!r}')
 
     rng = np.random.default_rng(random_state)
-    X = [generate_arma_sample(ar, ma, length, random_state=rng) for (ar, ma), count in zip(params, counts, strict=True)
-         for _ in range(count)]
+    X = [
+        generate_arma_sample(ar, ma, length, random_state=rng)
+        for (ar, ma), count in zip(params, counts, strict=True)
+        for _ in range(count)
+    ]
     y = np.repeat(np.arange(len(params)), counts)
     return X, y

@@ -9,6 +9,7 @@ again.
 
 Run with ``uv run --extra examples python examples/distance_estimation.py``.
 """
+
 import itertools
 from pathlib import Path
 
@@ -56,18 +57,30 @@ def plot(results: dict[str, np.ndarray]) -> None:
     lengths, estimates = results['lengths'], results['estimates']
     with plt.rc_context(MINIMAL):
         fig, axes = plt.subplots(1, len(estimates), figsize=(15, 3.6), gridspec_kw={'wspace': 0.6})
-        for ax, band, delta, pair, set_estimates in zip(axes, results['bands'], results['deltas'], results['pairs'],
-                                                        estimates, strict=True):
+        for ax, band, delta, pair, set_estimates in zip(
+            axes, results['bands'], results['deltas'], results['pairs'], estimates, strict=True
+        ):
             delta = float(delta)  # a plain float prints as before, e.g. 0.801
             print(f'{band:>14}  closest pair {pair}')
             for length, length_estimates in zip(lengths, set_estimates, strict=True):
-                print(f'{band:>14}  T={length:<5} estimate {length_estimates.mean():.3f} ± '
-                      f'{length_estimates.std():.3f}  (δ={delta})')
+                print(
+                    f'{band:>14}  T={length:<5} estimate {length_estimates.mean():.3f} ± '
+                    f'{length_estimates.std():.3f}  (δ={delta})'
+                )
             means, sds = set_estimates.mean(axis=1), set_estimates.std(axis=1)
             ax.axhline(delta, color=INK_SOFT, linewidth=1)
-            ax.annotate(f'true δ = {delta}', (1.0, delta), xycoords=('axes fraction', 'data'), xytext=(4, 0),
-                        textcoords='offset points', ha='left', va='center', fontsize=7.5, color=INK_SOFT,
-                        annotation_clip=False)
+            ax.annotate(
+                f'true δ = {delta}',
+                (1.0, delta),
+                xycoords=('axes fraction', 'data'),
+                xytext=(4, 0),
+                textcoords='offset points',
+                ha='left',
+                va='center',
+                fontsize=7.5,
+                color=INK_SOFT,
+                annotation_clip=False,
+            )
             ax.fill_between(lengths, means - sds, means + sds, color=LINE, alpha=0.12, linewidth=0)
             ax.plot(lengths, means, color=LINE)
             ax.set_xscale('log')

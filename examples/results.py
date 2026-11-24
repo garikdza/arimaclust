@@ -4,6 +4,7 @@ Saved results of the example scripts that fit models, so their figures can be re
 A script computes its raw results once and saves them as a ``.npz`` file next to its figures. Later runs plot from
 that file, and ``--recompute`` fits again.
 """
+
 import argparse
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
@@ -38,8 +39,7 @@ def load_results(path: Path) -> dict[str, np.ndarray]:
         return {key: data[key] for key in data.files}
 
 
-def load_or_compute(path: Path, compute: Callable[[], dict[str, np.ndarray]],
-                    recompute: bool) -> dict[str, np.ndarray]:
+def load_or_compute(path: Path, compute: Callable[[], dict[str, np.ndarray]], recompute: bool) -> dict[str, np.ndarray]:
     """
     Load the results saved at ``path``, computing and saving them first when the file is missing or asked to.
 

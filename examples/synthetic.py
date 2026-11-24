@@ -3,6 +3,7 @@ Synthetic ARMA cluster sets at a controlled separation δ, shared by the example
 
 δ is the smallest Piccolo distance (``tau=50``) between the processes that generate the clusters.
 """
+
 import itertools
 import math
 from collections.abc import Iterable
@@ -39,6 +40,7 @@ def band_of(delta: float) -> str:
 
 class CuratedSet(NamedTuple):
     """Cluster-generating parameters whose smallest pairwise Piccolo distance (``tau=50``) is ``delta``."""
+
     band: str
     delta: float
     params: list[Params]
@@ -140,8 +142,10 @@ def generate_separated_params(n_clusters: int, delta: float, seed: int, max_draw
             models.append(model)
             if len(kept) == n_clusters:
                 return kept
-    raise RuntimeError(f'found {len(kept)} of {n_clusters} processes with pairwise Piccolo distance >= {delta} '
-                       f'after {max_draws} draws; lower delta or n_clusters, or raise max_draws')
+    raise RuntimeError(
+        f'found {len(kept)} of {n_clusters} processes with pairwise Piccolo distance >= {delta} '
+        f'after {max_draws} draws; lower delta or n_clusters, or raise max_draws'
+    )
 
 
 def clustering_scores(params: list[Params], length: int, n_per_cluster: int, seeds: Iterable[int]) -> np.ndarray:

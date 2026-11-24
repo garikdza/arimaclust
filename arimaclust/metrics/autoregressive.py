@@ -1,4 +1,5 @@
 """Distances between two fitted ARIMA models, all built on their AR(inf) coefficients."""
+
 import numpy as np
 from scipy.linalg import toeplitz
 from statsmodels.tsa.stattools import acovf
@@ -52,7 +53,7 @@ def cepstral_coefficients(model: ARIMA, tau: int = 50) -> np.ndarray:
     coefficients = np.zeros(tau)
     for n in range(1, tau + 1):
         m = np.arange(1, n)
-        coefficients[n - 1] = pi[n - 1] + (m / n * coefficients[:n - 1]) @ pi[:n - 1][::-1]
+        coefficients[n - 1] = pi[n - 1] + (m / n * coefficients[: n - 1]) @ pi[: n - 1][::-1]
     return coefficients
 
 
@@ -84,8 +85,9 @@ def _ar_estimate(model: ARIMA, tau: int) -> tuple[np.ndarray, np.ndarray]:
     arma = model.differenced()
     pi = arma.pi(tau)
     if len(arma.series) <= tau:
-        raise ValueError(f'The series has {len(arma.series)} observations after differencing; '
-                         f'mahalanobis needs more than tau={tau}')
+        raise ValueError(
+            f'The series has {len(arma.series)} observations after differencing; mahalanobis needs more than tau={tau}'
+        )
     gamma = acovf(arma.series, adjusted=False, demean=True, fft=True, nlag=tau)
     a = np.r_[1, -pi]
     autocovariances = toeplitz(gamma)

@@ -26,14 +26,18 @@ def test_min_separation_is_smallest_pair():
     assert min_separation([([0.5], []), ([-0.5], []), ([], [])]) == pytest.approx(0.5)
 
 
-@pytest.mark.parametrize(('delta', 'band'), [
-    (0.0, 'δ < 0.2'),
-    (0.1999, 'δ < 0.2'),
-    (0.2, '0.2 ≤ δ < 0.4'),
-    (0.4, '0.4 ≤ δ < 0.6'),
-    (0.6, 'δ ≥ 0.6'),
-    (5.0, 'δ ≥ 0.6'),
-], ids=repr)
+@pytest.mark.parametrize(
+    ('delta', 'band'),
+    [
+        (0.0, 'δ < 0.2'),
+        (0.1999, 'δ < 0.2'),
+        (0.2, '0.2 ≤ δ < 0.4'),
+        (0.4, '0.4 ≤ δ < 0.6'),
+        (0.6, 'δ ≥ 0.6'),
+        (5.0, 'δ ≥ 0.6'),
+    ],
+    ids=repr,
+)
 def test_band_of_boundaries(delta: float, band: str):
     assert band_of(delta) == band
 
@@ -48,12 +52,15 @@ def test_curated_set_processes_are_stationary_and_invertible(curated: CuratedSet
 
 @pytest.mark.parametrize('curated', CURATED_SETS, ids=lambda s: s.band)
 def test_curated_set_delta_is_recomputed_min_piccolo(curated: CuratedSet):
-    recomputed = min(piccolo(ARIMA(*a), ARIMA(*b), tau=50)
-                     for a, b in itertools.combinations(curated.params, 2))
+    recomputed = min(piccolo(ARIMA(*a), ARIMA(*b), tau=50) for a, b in itertools.combinations(curated.params, 2))
     # the deltas are recorded to 4 dp
     assert curated.delta == pytest.approx(recomputed, abs=5e-5)
-    low, high = {'δ < 0.2': (0.0, 0.2), '0.2 ≤ δ < 0.4': (0.2, 0.4), '0.4 ≤ δ < 0.6': (0.4, 0.6),
-                 'δ ≥ 0.6': (0.6, math.inf)}[curated.band]
+    low, high = {
+        'δ < 0.2': (0.0, 0.2),
+        '0.2 ≤ δ < 0.4': (0.2, 0.4),
+        '0.4 ≤ δ < 0.6': (0.4, 0.6),
+        'δ ≥ 0.6': (0.6, math.inf),
+    }[curated.band]
     assert low <= recomputed < high
 
 
@@ -93,8 +100,9 @@ def test_clustering_scores_recover_far_set():
 
 def test_clustering_scores_reseed_each_draw():
     scores = clustering_scores(CURATED['δ < 0.2'], length=100, n_per_cluster=5, seeds=(0, 1, 2))
-    np.testing.assert_array_equal(scores, clustering_scores(CURATED['δ < 0.2'], length=100, n_per_cluster=5,
-                                                            seeds=(0, 1, 2)))
+    np.testing.assert_array_equal(
+        scores, clustering_scores(CURATED['δ < 0.2'], length=100, n_per_cluster=5, seeds=(0, 1, 2))
+    )
     # each draw gets its own seed, so the hard set scores differently on each
     assert len(set(scores)) > 1, scores
 

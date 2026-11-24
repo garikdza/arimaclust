@@ -60,8 +60,11 @@ class ConsistentClustering(DistanceInputMixin, ClusterMixin, BaseEstimator):
         self : ConsistentClustering
             fitted estimator
         """
-        if (not isinstance(self.n_clusters, numbers.Integral) or isinstance(self.n_clusters, bool)
-                or self.n_clusters < 1):
+        if (
+            not isinstance(self.n_clusters, numbers.Integral)
+            or isinstance(self.n_clusters, bool)
+            or self.n_clusters < 1
+        ):
             raise ValueError(f'n_clusters must be an integer >= 1, got {self.n_clusters!r}')
         dm = self._distance_matrix(X)
         n = dm.shape[0]
@@ -73,9 +76,12 @@ class ConsistentClustering(DistanceInputMixin, ClusterMixin, BaseEstimator):
             d_to_nearest_center = dm[:, centers].min(axis=1)
             farthest = int(np.argmax(d_to_nearest_center))
             if d_to_nearest_center[farthest] <= 0:
-                warnings.warn(f'n_clusters={self.n_clusters}, but every sample is at distance 0 from one of the '
-                              f'first {len(centers)} centres, so only {len(centers)} clusters were found',
-                              UserWarning, stacklevel=2)
+                warnings.warn(
+                    f'n_clusters={self.n_clusters}, but every sample is at distance 0 from one of the '
+                    f'first {len(centers)} centres, so only {len(centers)} clusters were found',
+                    UserWarning,
+                    stacklevel=2,
+                )
                 break
             centers.append(farthest)
 

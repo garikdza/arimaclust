@@ -4,6 +4,7 @@ AR(∞) coefficients π₁…π_tau that the Piccolo distance compares (``figure
 
 Run with ``uv run --extra examples python examples/processes.py``.
 """
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -35,8 +36,12 @@ def _sample_series() -> None:
     fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True)
     for ax, curated in zip(axes.flat, CURATED_SETS, strict=True):
         for k, ((ar, ma), colour) in enumerate(zip(curated.params, CLUSTER_COLOURS, strict=True)):
-            ax.plot(generate_arma_sample(ar, ma, LENGTH, random_state=rng) - k * OFFSET, color=colour, linewidth=0.8,
-                    label=f'AR {ar}, MA {ma}')
+            ax.plot(
+                generate_arma_sample(ar, ma, LENGTH, random_state=rng) - k * OFFSET,
+                color=colour,
+                linewidth=0.8,
+                label=f'AR {ar}, MA {ma}',
+            )
         ax.set_yticks([])
         # headroom for the legend above the top series
         ax.set_ylim(top=ax.get_ylim()[1] + OFFSET)
@@ -66,8 +71,9 @@ def _ar_coefficients() -> None:
         ax.set_xlabel('lag k')
     for ax in axes[:, 0]:
         ax.set_ylabel('π_k')
-    fig.suptitle(f'true AR(∞) coefficients π₁…π_{TAU} of each cluster; δ is the smallest Euclidean distance '
-                 'between them')
+    fig.suptitle(
+        f'true AR(∞) coefficients π₁…π_{TAU} of each cluster; δ is the smallest Euclidean distance between them'
+    )
     _save(fig, 'ar_coefficients.png')
 
 

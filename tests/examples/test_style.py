@@ -5,7 +5,7 @@ from synthetic import BANDS
 
 
 def _luminance(colour: str) -> float:
-    red, green, blue = (int(colour[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    red, green, blue = (int(colour[i : i + 2], 16) / 255 for i in (1, 3, 5))
     return 0.2126 * red + 0.7152 * green + 0.0722 * blue
 
 

@@ -8,6 +8,7 @@ The scores are saved to ``figures/accuracy_vs_delta.npz`` and later runs plot fr
 
 Run with ``uv run --extra examples python examples/accuracy_vs_delta.py``.
 """
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -68,8 +69,16 @@ def plot(results: dict[str, np.ndarray]) -> None:
                 print(f'{label:>14}  seed={seed:<5} δ={delta:.4f}  AMI {score:.3f}')
             mean = set_scores[in_band].mean()
             print(f'{label:>14}  mean AMI {mean:.3f}')
-            ax.scatter(deltas[in_band], set_scores[in_band], s=42, color=colour, edgecolor=SURFACE, linewidth=2,
-                       zorder=3, label=f'{label}   mean {mean:.2f}')
+            ax.scatter(
+                deltas[in_band],
+                set_scores[in_band],
+                s=42,
+                color=colour,
+                edgecolor=SURFACE,
+                linewidth=2,
+                zorder=3,
+                label=f'{label}   mean {mean:.2f}',
+            )
             ax.hlines(mean, deltas[in_band].min(), deltas[in_band].max(), color=colour, linewidth=2.5, zorder=2)
         for boundary, _ in list(BANDS.values())[1:]:
             ax.axvline(boundary, color=AXIS, linewidth=0.8, zorder=1)

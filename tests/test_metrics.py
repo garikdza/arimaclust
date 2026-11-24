@@ -9,19 +9,22 @@ from arimaclust.metrics import cepstral, cepstral_coefficients, dist_matrix_para
 from arimaclust.modeling import ARIMA
 from synthetic import EXAMPLE1, EXAMPLE2
 
-X_SERIES = np.array([1., 2., 3., 4.])
-Y_SERIES = np.array([1., -1., 1., -1., 1., -1.])
+X_SERIES = np.array([1.0, 2.0, 3.0, 4.0])
+Y_SERIES = np.array([1.0, -1.0, 1.0, -1.0, 1.0, -1.0])
 P, Q = ARIMA([0.4], []), ARIMA([-0.5], [])
 X_ITEM, Y_ITEM = ARIMA([0.4], [], series=X_SERIES), ARIMA([-0.5], [], series=Y_SERIES)
 
 
 @pytest.mark.parametrize('tau', [0, -1, 2.5, True, '3', None], ids=repr)
-@pytest.mark.parametrize(('func', 'args'), [
-    pytest.param(piccolo, (P, Q), id='piccolo'),
-    pytest.param(cepstral, (P, Q), id='cepstral'),
-    pytest.param(cepstral_coefficients, (P,), id='cepstral-coefficients'),
-    pytest.param(mahalanobis, (X_ITEM, Y_ITEM), id='mahalanobis'),
-])
+@pytest.mark.parametrize(
+    ('func', 'args'),
+    [
+        pytest.param(piccolo, (P, Q), id='piccolo'),
+        pytest.param(cepstral, (P, Q), id='cepstral'),
+        pytest.param(cepstral_coefficients, (P,), id='cepstral-coefficients'),
+        pytest.param(mahalanobis, (X_ITEM, Y_ITEM), id='mahalanobis'),
+    ],
+)
 def test_bad_tau_raises(func: Callable, args: tuple, tau: object):
     # the repr shows the value as given, not tau + 1 (True as True, 2.5 as 2.5)
     with pytest.raises(ValueError, match=rf'tau must be an integer >= 1, got {re.escape(repr(tau))}'):
@@ -41,36 +44,45 @@ def test_mahalanobis_series_not_longer_than_tau_raises():
     assert np.isfinite(mahalanobis(X_ITEM, Y_ITEM, tau=3))
 
 
-@pytest.mark.parametrize(('x_params', 'y_params', 'tau', 'expected'), [
-    # an AR(1) has pi_1 = phi and pi_j = 0 for j > 1
-    pytest.param(([0.5], []), ([0.3], []), 1, 0.2, id='ar1-tau1'),
-    # an MA(1) has pi_j = -(-theta)^j: pi = (0.9, -0.81, ...) and (0.5, -0.25, ...)
-    pytest.param(([], [0.9]), ([], [0.5]), 2, np.hypot(0.4, 0.56), id='ma1-tau2'),
-    pytest.param(([], [0.9]), ([], [0.5]), 10,
-                 np.sqrt(sum(((-0.9) ** j - (-0.5) ** j) ** 2 for j in range(1, 11))), id='ma1-tau10'),
-])
+@pytest.mark.parametrize(
+    ('x_params', 'y_params', 'tau', 'expected'),
+    [
+        # an AR(1) has pi_1 = phi and pi_j = 0 for j > 1
+        pytest.param(([0.5], []), ([0.3], []), 1, 0.2, id='ar1-tau1'),
+        # an MA(1) has pi_j = -(-theta)^j: pi = (0.9, -0.81, ...) and (0.5, -0.25, ...)
+        pytest.param(([], [0.9]), ([], [0.5]), 2, np.hypot(0.4, 0.56), id='ma1-tau2'),
+        pytest.param(
+            ([], [0.9]),
+            ([], [0.5]),
+            10,
+            np.sqrt(sum(((-0.9) ** j - (-0.5) ** j) ** 2 for j in range(1, 11))),
+            id='ma1-tau10',
+        ),
+    ],
+)
 def test_piccolo_matches_closed_form(x_params: tuple, y_params: tuple, tau: int, expected: float):
     distance = piccolo(ARIMA(*x_params), ARIMA(*y_params), tau=tau)
     assert distance == pytest.approx(expected, rel=1e-12)
 
 
-@pytest.mark.parametrize(('ar_params', 'ma_params', 'expected'), [
-    # pi = (0.8, -0.24, 0.072); c1 = 0.8; c2 = -0.24 + 1/2*0.8*0.8 = 0.08;
-    # c3 = 0.072 + 1/3*0.8*(-0.24) + 2/3*0.08*0.8 = 0.152/3, which is (phi^n - (-theta)^n)/n
-    pytest.param([0.5], [0.3], [0.8, 0.08, 0.152 / 3], id='arma11'),
-    # c1 = 0.5; c2 = -0.2 + 1/2*0.5*0.5 = -0.075; c3 = 1/3*0.5*(-0.2) + 2/3*(-0.075)*0.5 = -0.175/3
-    pytest.param([0.5, -0.2], [], [0.5, -0.075, -0.175 / 3], id='ar2'),
-])
+@pytest.mark.parametrize(
+    ('ar_params', 'ma_params', 'expected'),
+    [
+        # pi = (0.8, -0.24, 0.072); c1 = 0.8; c2 = -0.24 + 1/2*0.8*0.8 = 0.08;
+        # c3 = 0.072 + 1/3*0.8*(-0.24) + 2/3*0.08*0.8 = 0.152/3, which is (phi^n - (-theta)^n)/n
+        pytest.param([0.5], [0.3], [0.8, 0.08, 0.152 / 3], id='arma11'),
+        # c1 = 0.5; c2 = -0.2 + 1/2*0.5*0.5 = -0.075; c3 = 1/3*0.5*(-0.2) + 2/3*(-0.075)*0.5 = -0.175/3
+        pytest.param([0.5, -0.2], [], [0.5, -0.075, -0.175 / 3], id='ar2'),
+    ],
+)
 def test_cepstral_coefficients_match_hand_values(ar_params: list, ma_params: list, expected: list):
-    np.testing.assert_allclose(cepstral_coefficients(ARIMA(ar_params, ma_params), tau=3), expected,
-                               rtol=1e-12)
+    np.testing.assert_allclose(cepstral_coefficients(ARIMA(ar_params, ma_params), tau=3), expected, rtol=1e-12)
 
 
 def test_cepstral_ar1_closed_form():
     # an AR(1) has cepstral coefficients phi^n / n
-    expected = np.sqrt(sum((0.6 ** n / n - (-0.3) ** n / n) ** 2 for n in range(1, 6)))
-    assert cepstral(ARIMA([0.6], []), ARIMA([-0.3], []), tau=5) == pytest.approx(expected,
-                                                                                                    rel=1e-10)
+    expected = np.sqrt(sum((0.6**n / n - (-0.3) ** n / n) ** 2 for n in range(1, 6)))
+    assert cepstral(ARIMA([0.6], []), ARIMA([-0.3], []), tau=5) == pytest.approx(expected, rel=1e-10)
 
 
 def test_cepstral_zero_on_self_and_symmetric():

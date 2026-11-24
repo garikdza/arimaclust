@@ -8,8 +8,9 @@ from arimaclust.utils import timeit
 
 
 @timeit
-def dist_matrix_parallel(items: list | dict, metric: Callable[..., float], n_jobs: int | None = None,
-                         **kwargs) -> np.ndarray | pd.DataFrame:
+def dist_matrix_parallel(
+    items: list | dict, metric: Callable[..., float], n_jobs: int | None = None, **kwargs
+) -> np.ndarray | pd.DataFrame:
     """
     Symmetric pairwise distance matrix, with the pairs computed in parallel.
 
@@ -34,7 +35,8 @@ def dist_matrix_parallel(items: list | dict, metric: Callable[..., float], n_job
     rows, cols = np.tril_indices(n, k=-1)
     out_mat = np.zeros((n, n))
     out_mat[rows, cols] = Parallel(n_jobs=n_jobs)(
-        delayed(metric)(data[i], data[j], **kwargs) for i, j in zip(rows, cols, strict=True))
+        delayed(metric)(data[i], data[j], **kwargs) for i, j in zip(rows, cols, strict=True)
+    )
     result = out_mat + out_mat.T
 
     if isinstance(items, dict):

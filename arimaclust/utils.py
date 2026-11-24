@@ -14,6 +14,7 @@ def check_tau(tau: object) -> None:
 
 def timeit(func):
     """Log at debug level how long each call of ``func`` takes."""
+
     @functools.wraps(func)
     def timeit_wrapper(*args, **kwargs):
         start_time = time.perf_counter()
