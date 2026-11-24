@@ -46,18 +46,55 @@ cluster a ready distance matrix instead.
 
 ## Examples
 
-The `examples/` scripts run the method on synthetic clusters with a known separation δ: the smallest Piccolo
-distance (`tau=50`) between the ARMA processes that generate the clusters.
+The `examples/` scripts test the method on synthetic data, where the true clusters are known. Each cluster is a group
+of series drawn from one ARMA process. The separation δ of a set of processes is the smallest Piccolo distance
+(`tau=50`) between any two of them: the smaller δ, the harder some clusters are to tell apart. `examples/synthetic.py`
+holds four curated three-cluster sets, one per δ band (δ < 0.2, 0.2 ≤ δ < 0.4, 0.4 ≤ δ < 0.6 and δ ≥ 0.6), and
+`generate_separated_params`, which draws new sets with a given δ.
 
-In the figure at the top, each point is the mean adjusted mutual information (AMI) over eight draws of three
-clusters with ten series each, and the shaded band is ±1 standard deviation. The δ ≥ 0.6 set is clustered perfectly
-from T = 200, and the two middle sets reach an AMI of 0.98 or more by T = 800. The δ < 0.2 set reaches only about
-0.55 at T = 1600: its models are close enough that much longer series are needed to tell them apart.
+### Procedure
+
+Every example follows the same steps:
+
+1. **Draw the series.** `generate_clusters` simulates a number of series of length T from each process.
+2. **Fit a model to each series.** `ARMADistance` runs `pmdarima.auto_arima` with AR and MA orders up to 3, and
+   selects the orders by BIC.
+3. **Estimate the distances.** The Piccolo distance between two fitted models is the Euclidean distance between their
+   first 50 AR(∞) coefficients.
+4. **Cluster.** `ConsistentClustering` gets the distance matrix and the true number of clusters.
+5. **Score.** The adjusted mutual information (AMI) compares the clusters found with the true ones: 1 is a perfect
+   match, and about 0 is no better than chance.
+
+### Model fitting and distance estimation
+
+The clustering is only as good as the estimated distances. `distance_estimation.py` takes the closest pair of
+processes in each curated set, draws 20 pairs of series at each length, and compares the estimated distance with
+the true δ.
+
+![Estimated Piccolo distance against series length for the closest pair of each curated set, with the true δ as a line](examples/figures/estimated_distance.png)
+
+The line is the mean of the 20 estimates and the shaded band is ±1 standard deviation. The spread shrinks as the
+series grow: for the δ ≥ 0.6 pair the standard deviation falls from 0.30 at T = 50 to 0.035 at T = 1600, and for the
+two middle pairs the mean is within 0.01 of δ at T = 1600. The δ < 0.2 pair is the exception at these lengths. Its
+mean stays at about 0.08 against δ = 0.1008 from T = 400 on. Its processes are an ARMA(1,1) and an MA(1), BIC often
+fits an AR(1) to either of them, and two AR(1) fits are closer to each other than the true models are.
+
+### Clustering accuracy
+
+The figure at the top comes from `accuracy_vs_length.py`. Each point is the mean AMI over eight draws of three
+clusters with ten series each, and the shaded band is ±1 standard deviation. Accuracy rises with the series length
+T, and sooner for larger δ: the δ ≥ 0.6 set is clustered perfectly from T = 200, and the two middle sets reach an AMI
+of 0.98 or more by T = 800. The δ < 0.2 set reaches only about 0.55 at T = 1600: its models are close enough that
+much longer series are needed to tell them apart.
 
 ![Clustering accuracy rising with the separation δ between the processes, at series length 200](examples/figures/accuracy_vs_delta.png)
 
-At a fixed length, T = 200, accuracy rises with δ. Each dot is one generated two-cluster set (mean AMI of four
-draws), and each bar is the mean of its band.
+At a fixed length, T = 200, accuracy rises with δ. `accuracy_vs_delta.py` draws six two-cluster sets per band with
+`generate_separated_params`. Each dot is one set (the mean AMI of four draws), and each bar is the mean of its band.
+The spread within a band is wide, because δ is not the only thing that makes two processes hard to tell apart from
+short series.
+
+### Running the examples
 
 The scripts need matplotlib, from the `examples` extra, and write their figures to `examples/figures/`. The
 slowest, `accuracy_vs_length.py`, fits about 6,000 models and takes several minutes on a multi-core machine.
@@ -70,12 +107,9 @@ uv sync --extra examples
 uv run --extra examples python examples/accuracy_vs_length.py   # accuracy_vs_length.png (the figure at the top)
 uv run --extra examples python examples/accuracy_vs_delta.py    # accuracy_vs_delta.png: accuracy against δ
 uv run --extra examples python examples/distance_matrix.py      # distance_matrix.png: heatmap and MDS embedding
-uv run --extra examples python examples/distance_estimation.py  # estimated_distance.png: fitted vs true δ
+uv run --extra examples python examples/distance_estimation.py  # estimated_distance.png: fitted against true δ
 uv run --extra examples python examples/processes.py            # sample_series.png, ar_coefficients.png
 ```
-
-`examples/synthetic.py` holds the curated cluster sets, one per δ band, and `generate_separated_params`, which
-draws new sets with a given δ.
 
 ## Citation
 
