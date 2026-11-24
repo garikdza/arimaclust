@@ -12,12 +12,12 @@ the maximum orders and the number of clusters are known, this procedure is weakl
 (Adamyan, *Journal of Contemporary Mathematical Analysis* 58(3), 2023).
 
 <p align="center">
-  <img src="examples/figures/accuracy_vs_delta.png" width="640"
-       alt="Clustering accuracy rising with the separation δ between the cluster-generating processes">
+  <img src="examples/figures/accuracy_vs_length.png" width="640"
+       alt="Clustering accuracy rising to 1 with series length, sooner for clusters that are further apart">
 </p>
-<p align="center"><sub>Clustering accuracy (AMI) against the separation δ of generated two-cluster sets, series of
-length 200: the further apart the processes, the more reliably the series are clustered. See
-<a href="#examples">Examples</a>.</sub></p>
+<p align="center"><sub>Clustering accuracy (AMI) against series length for four curated three-cluster sets, from the
+closest (δ &lt; 0.2) to the furthest apart (δ ≥ 0.6): accuracy goes to 1 as the series grow, sooner when the
+processes are further apart. See <a href="#examples">Examples</a>.</sub></p>
 
 ## Install
 
@@ -50,13 +50,15 @@ cluster a ready distance matrix instead.
 The `examples/` scripts run the method on synthetic clusters with a known separation δ: the smallest Piccolo
 distance (`tau=50`) between the ARMA processes that generate the clusters.
 
-![Clustering accuracy rising with series length, faster for larger δ](examples/figures/accuracy_vs_length.png)
+In the figure at the top, each point is the mean adjusted mutual information (AMI) over eight draws of three
+clusters with ten series each, and the shaded band is ±1 standard deviation. The δ ≥ 0.6 set is clustered perfectly
+from T = 200, and the two middle sets reach an AMI of 0.98 or more by T = 800. The δ < 0.2 set reaches only about
+0.55 at T = 1600: its models are close enough that much longer series are needed to tell them apart.
 
-Each point is the mean adjusted mutual information (AMI) over eight draws of three clusters with ten series each,
-and the shaded band is ±1 standard deviation. Accuracy rises with the series length T, and sooner for larger δ: the
-δ ≥ 0.6 set is clustered perfectly from T = 200, and the two middle sets reach an AMI of 0.98 or more by T = 800.
-The δ < 0.2 set rises slowest and reaches only about 0.55 at T = 1600, with a wide spread; its models are close
-enough that much longer series are needed to tell them apart.
+![Clustering accuracy rising with the separation δ between the processes, at series length 200](examples/figures/accuracy_vs_delta.png)
+
+At a fixed length, T = 200, accuracy rises with δ. Each dot is one generated two-cluster set (mean AMI of four
+draws), and each bar is the mean of its band.
 
 The scripts need matplotlib, from the `examples` extra, and write their figures to `examples/figures/`. The
 slowest, `accuracy_vs_length.py`, fits about 6,000 models and takes several minutes on a multi-core machine.
@@ -66,9 +68,9 @@ a script's settings or a curated set.
 
 ```bash
 uv sync --extra examples
-uv run --extra examples python examples/accuracy_vs_length.py   # accuracy_vs_length.png (the figure above)
+uv run --extra examples python examples/accuracy_vs_length.py   # accuracy_vs_length.png (the figure at the top)
 uv run --extra examples python examples/accuracy_vs_delta.py    # accuracy_vs_delta.png: accuracy against δ
-uv run --extra examples python examples/distance_matrix.py      # mds_embedding.png, distance_heatmap.png
+uv run --extra examples python examples/distance_matrix.py      # distance_matrix.png: heatmap and MDS embedding
 uv run --extra examples python examples/distance_estimation.py  # estimated_distance.png: fitted vs true δ
 uv run --extra examples python examples/processes.py            # sample_series.png, ar_coefficients.png
 ```
