@@ -29,6 +29,10 @@ Piccolo distance between the generating processes.</sub></p>
   ([Khaleghi et al., 2016](https://www.jmlr.org/papers/v17/khaleghi16a.html)). With the Piccolo distance and BIC
   order selection it is weakly asymptotically consistent for ARMA processes
   ([Adamyan, 2023](https://doi.org/10.3103/S1068362323030020)).
+- `KMedoids(n_clusters)`: k-medoids, starting from PAM BUILD (`init='build'`) or from the farthest-point centres
+  (`init='farthest'`), then PAM swaps until no exchange of a medoid lowers the total distance to the medoids
+  ([Kaufman & Rousseeuw, 1990](https://doi.org/10.1002/9780470316801)). It often places centres better on real data,
+  but has no consistency guarantee.
 - `ThresholdClustering(alpha)`: connected components of the graph linking pairs at distance ≤ `alpha`, for an
   unknown number of clusters.
 
@@ -46,7 +50,7 @@ pip install git+https://github.com/garikdza/arimaclust
 ## Quickstart
 
 ```python
-from arimaclust import ARMADistance, ConsistentClustering
+from arimaclust import ARMADistance, KMedoids
 from arimaclust.data import generate_clusters
 
 # one (AR, MA) coefficient pair per cluster: an AR(1), an AR(2) and an MA(1)
@@ -58,7 +62,7 @@ distance = ARMADistance(max_p=3, max_q=3, d=0, metric='piccolo', tau=50, n_jobs=
 From raw series, the clusterer fits the distance itself:
 
 ```python
-model = ConsistentClustering(n_clusters=3, distance=distance).fit(X)
+model = KMedoids(n_clusters=3, distance=distance).fit(X)
 model.labels_                  # cluster per series
 model.distance_.models_        # fitted ARIMA per series
 model.distance_.dist_matrix_   # pairwise Piccolo distances
@@ -68,7 +72,7 @@ From a precomputed distance matrix, for example to try several clusterers on one
 
 ```python
 D = distance.fit_transform(X)  # (60, 60) Piccolo distances
-labels = ConsistentClustering(n_clusters=3, distance='precomputed').fit_predict(D)
+labels = KMedoids(n_clusters=3, distance='precomputed').fit_predict(D)
 ```
 
 ## Examples
