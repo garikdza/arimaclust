@@ -18,12 +18,14 @@ import numpy as np
 from arimaclust import ARMADistance
 from arimaclust.data.generate import generate_clusters
 from results import load_or_compute, parse_args
+from style import BAND_COLOURS, INK_SOFT, MINIMAL
 from synthetic import CURATED_SETS, min_separation
 
 LENGTHS = (50, 100, 200, 400, 800, 1600)
 N_PAIRS = 20
 FIGURES = Path(__file__).parent / 'figures'
 RESULTS = FIGURES / 'distance_estimation.npz'
+LINE = BAND_COLOURS[2]
 
 
 def compute() -> dict[str, np.ndarray]:
@@ -53,29 +55,32 @@ def compute() -> dict[str, np.ndarray]:
 def plot(results: dict[str, np.ndarray]) -> None:
     """Print the mean and spread of the saved estimates and draw them against length, one panel per set."""
     lengths, estimates = results['lengths'], results['estimates']
-    fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
-    for ax, band, delta, pair, set_estimates in zip(axes.flat, results['bands'], results['deltas'], results['pairs'],
-                                                    estimates, strict=True):
-        delta = float(delta)  # a plain float prints as before, e.g. 0.801
-        for length, length_estimates in zip(lengths, set_estimates, strict=True):
-            print(f'{band:>14}  T={length:<5} estimate {length_estimates.mean():.3f} ± {length_estimates.std():.3f}'
-                  f'  (δ={delta})')
-        means, sds = set_estimates.mean(axis=1), set_estimates.std(axis=1)
-        ax.plot(lengths, means, marker='o', label=f'mean of {estimates.shape[-1]} estimates')
-        ax.fill_between(lengths, means - sds, means + sds, alpha=0.2, label='± 1 sd')
-        ax.axhline(delta, color='black', linestyle='--', label=f'true δ = {delta}')
-        ax.set_title(f'{band}: {pair}', fontsize=9)
-        ax.set_ylabel('Piccolo distance')
-        ax.legend(fontsize=8)
-    for ax in axes[-1]:
-        ax.set_xscale('log')
-        ax.set_xticks(lengths, [str(length) for length in lengths])
-        ax.set_xlabel('series length T')
-    fig.suptitle('Piccolo distance between fitted models (ARMADistance, BIC) for the closest pair of each set')
+    with plt.rc_context(MINIMAL):
+        fig, axes = plt.subplots(1, len(estimates), figsize=(15, 3.6), gridspec_kw={'wspace': 0.6})
+        for ax, band, delta, pair, set_estimates in zip(axes, results['bands'], results['deltas'], results['pairs'],
+                                                        estimates, strict=True):
+            delta = float(delta)  # a plain float prints as before, e.g. 0.801
+            print(f'{band:>14}  closest pair {pair}')
+            for length, length_estimates in zip(lengths, set_estimates, strict=True):
+                print(f'{band:>14}  T={length:<5} estimate {length_estimates.mean():.3f} ± '
+                      f'{length_estimates.std():.3f}  (δ={delta})')
+            means, sds = set_estimates.mean(axis=1), set_estimates.std(axis=1)
+            ax.axhline(delta, color=INK_SOFT, linewidth=1)
+            ax.annotate(f'true δ = {delta}', (1.0, delta), xycoords=('axes fraction', 'data'), xytext=(4, 0),
+                        textcoords='offset points', ha='left', va='center', fontsize=7.5, color=INK_SOFT,
+                        annotation_clip=False)
+            ax.fill_between(lengths, means - sds, means + sds, color=LINE, alpha=0.12, linewidth=0)
+            ax.plot(lengths, means, color=LINE)
+            ax.set_xscale('log')
+            ax.set_xticks(lengths, [str(length) for length in lengths], fontsize=7.5)
+            ax.minorticks_off()
+            ax.set_title(band, fontsize=10, pad=6)
+            ax.set_xlabel('series length T')
+        axes[0].set_ylabel(f'Piccolo distance (mean ± 1 sd, {estimates.shape[-1]} fits)')
 
-    path = FIGURES / 'estimated_distance.png'
-    fig.savefig(path, dpi=150, bbox_inches='tight')
-    plt.close(fig)
+        path = FIGURES / 'estimated_distance.png'
+        fig.savefig(path)
+        plt.close(fig)
     print(f'wrote {path}')
 
 

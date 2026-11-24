@@ -1,6 +1,6 @@
 """
-The fitted Piccolo distance matrix of one curated set, as a 2-D MDS embedding (``figures/mds_embedding.png``)
-and as a heatmap ordered by true cluster (``figures/distance_heatmap.png``).
+The fitted Piccolo distance matrix of one curated set (``figures/distance_matrix.png``): a heatmap ordered by true
+cluster beside a 2-D MDS embedding coloured by true cluster, with the misclustered series circled.
 
 The fit is saved to ``figures/distance_matrix.npz`` and later runs plot from it; ``--recompute`` fits again.
 
@@ -10,12 +10,14 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
 from sklearn.manifold import MDS
 from sklearn.metrics import adjusted_mutual_info_score
 
 from arimaclust import ARMADistance, ConsistentClustering
 from arimaclust.data.generate import generate_clusters
 from results import load_or_compute, parse_args
+from style import CLUSTER_COLOURS, DISTANCE_RAMP, INK, MINIMAL, SURFACE
 from synthetic import CURATED_SETS
 
 BAND = '0.2 ≤ δ < 0.4'
@@ -43,42 +45,51 @@ def compute() -> dict[str, np.ndarray]:
     }
 
 
-def _save(fig: plt.Figure, name: str) -> None:
-    """Write ``fig`` to ``FIGURES / name`` and close it."""
-    path = FIGURES / name
-    fig.savefig(path, dpi=150, bbox_inches='tight')
-    plt.close(fig)
-    print(f'wrote {path}')
-
-
 def plot(results: dict[str, np.ndarray]) -> None:
-    """Print the AMI and draw the MDS embedding and the heatmap of the saved distance matrix."""
+    """Print the AMI and draw the heatmap and the MDS embedding of the saved distance matrix side by side."""
     D, y, labels = results['distances'], results['y_true'], results['y_pred']
     band, delta, length = str(results['band']), float(results['delta']), int(results['length'])
-    n_per_cluster = int(results['n_per_cluster'])
+    n_clusters, n_per_cluster = int(results['n_clusters']), int(results['n_per_cluster'])
     ami = adjusted_mutual_info_score(y, labels)
     print(f'{band} (δ={delta}), T={length}: AMI {ami:.3f}')
+    cluster_names = [f'cluster {c + 1}' for c in range(n_clusters)]
 
-    embedding = MDS(n_components=2, dissimilarity='precomputed', n_init=4, random_state=0).fit_transform(D)
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), sharex=True, sharey=True)
-    for ax, colours, title in zip(axes, (y, labels), ('true clusters', 'predicted clusters'), strict=True):
-        ax.scatter(*embedding.T, c=colours, cmap='tab10', vmin=0, vmax=9)
-        ax.set_title(title)
-    fig.suptitle(f'MDS of the fitted Piccolo distances, {band} (δ={delta}), '
-                 f'{n_per_cluster} series per cluster at T={length}: AMI {ami:.2f}')
-    _save(fig, 'mds_embedding.png')
+    with plt.rc_context(MINIMAL):
+        fig, (heat, mds) = plt.subplots(1, 2, figsize=(11.5, 4.8), gridspec_kw={'width_ratios': [1.1, 1]})
+        # generate_clusters returns the series grouped by cluster, so the blocks are the clusters
+        heat.grid(False)
+        image = heat.imshow(D, cmap=LinearSegmentedColormap.from_list('distance', DISTANCE_RAMP),
+                            interpolation='nearest')
+        for boundary in np.arange(1, n_clusters) * n_per_cluster - 0.5:
+            heat.axhline(boundary, color=SURFACE, linewidth=2)
+            heat.axvline(boundary, color=SURFACE, linewidth=2)
+        centres = np.arange(n_clusters) * n_per_cluster + n_per_cluster / 2 - 0.5
+        heat.set_xticks(centres, cluster_names)
+        heat.set_yticks(centres, cluster_names)
+        heat.spines[['left', 'bottom']].set_visible(False)
+        bar = fig.colorbar(image, ax=heat, fraction=0.046, pad=0.03)
+        bar.outline.set_visible(False)
+        bar.set_label('Piccolo distance (lighter = closer)')
 
-    # generate_clusters returns the series grouped by cluster, so the blocks are the clusters
-    fig, ax = plt.subplots(figsize=(6, 5))
-    image = ax.imshow(D, cmap='viridis')
-    fig.colorbar(image, ax=ax, label='Piccolo distance')
-    for boundary in np.arange(1, int(results['n_clusters'])) * n_per_cluster - 0.5:
-        ax.axhline(boundary, color='white', linewidth=0.8)
-        ax.axvline(boundary, color='white', linewidth=0.8)
-    ax.set_title(f'fitted distances by true cluster, {band} (δ={delta}), T={length}')
-    ax.set_xlabel('series')
-    ax.set_ylabel('series')
-    _save(fig, 'distance_heatmap.png')
+        embedding = MDS(n_components=2, dissimilarity='precomputed', n_init=4, random_state=0).fit_transform(D)
+        # a predicted cluster stands for the true cluster most of its series come from; the rest are misclustered
+        majority = {label: np.bincount(y[labels == label]).argmax() for label in np.unique(labels)}
+        wrong = np.array([majority[label] != true for label, true in zip(labels, y, strict=True)])
+        mds.grid(False)
+        for c, colour in zip(range(n_clusters), CLUSTER_COLOURS, strict=True):
+            mds.scatter(*embedding[y == c].T, s=40, color=colour, edgecolor=SURFACE, linewidth=1.5,
+                        label=cluster_names[c], zorder=3)
+        mds.scatter(*embedding[wrong].T, s=130, facecolor='none', edgecolor=INK, linewidth=1, zorder=4,
+                    label='misclustered')
+        mds.set_xticks([])
+        mds.set_yticks([])
+        mds.spines[['left', 'bottom']].set_visible(False)
+        mds.legend(loc='best', title=f'true cluster (AMI {ami:.2f})')
+
+        path = FIGURES / 'distance_matrix.png'
+        fig.savefig(path)
+        plt.close(fig)
+    print(f'wrote {path}')
 
 
 def main() -> None:

@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from results import load_or_compute, parse_args
+from style import AXIS, BAND_COLOURS, MINIMAL, SURFACE
 from synthetic import BANDS, TAU, band_of, clustering_scores, generate_separated_params, min_separation
 
 LENGTH = 200
@@ -22,6 +23,7 @@ SEEDS = range(4)
 SETS_PER_BAND = 6
 # with two clusters δ is the only pairwise distance; a far third cluster would lift every band's accuracy
 N_CLUSTERS = 2
+DELTA_TICKS = (0.05, 0.1, 0.2, 0.4, 0.6, 1.0, 1.5)
 FIGURES = Path(__file__).parent / 'figures'
 RESULTS = FIGURES / 'accuracy_vs_delta.npz'
 
@@ -58,29 +60,32 @@ def plot(results: dict[str, np.ndarray]) -> None:
     """Print each set's mean AMI and each band's mean, and draw them against δ."""
     bands, seeds, deltas = results['bands'], results['seeds'], results['deltas']
     set_scores = results['scores'].mean(axis=1)
-    fig, ax = plt.subplots(figsize=(7, 4.5))
-    for label in BANDS:
-        in_band = bands == label
-        for seed, delta, score in zip(seeds[in_band], deltas[in_band], set_scores[in_band], strict=True):
-            print(f'{label:>14}  seed={seed:<5} δ={delta:.4f}  AMI {score:.3f}')
-        mean = set_scores[in_band].mean()
-        print(f'{label:>14}  mean AMI {mean:.3f}')
-        points = ax.scatter(deltas[in_band], set_scores[in_band], label=label)
-        ax.hlines(mean, deltas[in_band].min(), deltas[in_band].max(), color=points.get_facecolor(), linewidth=2)
-    for boundary, _ in list(BANDS.values())[1:]:
-        ax.axvline(boundary, color='grey', linestyle='--', linewidth=0.8)
-    ax.set_xscale('log')
-    ax.set_ylim(-0.05, 1.05)
-    ax.set_xlabel(f'separation δ (smallest Piccolo distance, tau={TAU})')
-    ax.set_ylabel(f'AMI (mean over {results["scores"].shape[-1]} draws)')
-    ax.set_title(f'generate_separated_params sets, {int(results["n_clusters"])} clusters × '
-                 f'{int(results["n_per_cluster"])} series at T={int(results["length"])}\n'
-                 'dots: one set each; bars: band mean over its sets')
-    ax.legend(title='separation band')
+    with plt.rc_context(MINIMAL):
+        fig, ax = plt.subplots(figsize=(7.5, 4.5))
+        for label, colour in zip(BANDS, BAND_COLOURS, strict=True):
+            in_band = bands == label
+            for seed, delta, score in zip(seeds[in_band], deltas[in_band], set_scores[in_band], strict=True):
+                print(f'{label:>14}  seed={seed:<5} δ={delta:.4f}  AMI {score:.3f}')
+            mean = set_scores[in_band].mean()
+            print(f'{label:>14}  mean AMI {mean:.3f}')
+            ax.scatter(deltas[in_band], set_scores[in_band], s=42, color=colour, edgecolor=SURFACE, linewidth=2,
+                       zorder=3, label=f'{label}   mean {mean:.2f}')
+            ax.hlines(mean, deltas[in_band].min(), deltas[in_band].max(), color=colour, linewidth=2.5, zorder=2)
+        for boundary, _ in list(BANDS.values())[1:]:
+            ax.axvline(boundary, color=AXIS, linewidth=0.8, zorder=1)
+        ax.set_xscale('log')
+        ticks = [x for x in DELTA_TICKS if deltas.min() <= x <= deltas.max()]
+        ax.set_xticks(ticks, [f'{x:g}' for x in ticks])
+        ax.minorticks_off()
+        ax.set_ylim(-0.05, 1.05)
+        ax.set_yticks([0, 0.25, 0.5, 0.75, 1])
+        ax.set_xlabel(f'separation δ (smallest Piccolo distance, τ = {TAU})')
+        ax.set_ylabel(f'AMI (mean of {results["scores"].shape[-1]} draws)')
+        ax.legend(loc='upper left', bbox_to_anchor=(1.01, 1), title='separation band')
 
-    path = FIGURES / 'accuracy_vs_delta.png'
-    fig.savefig(path, dpi=150, bbox_inches='tight')
-    plt.close(fig)
+        path = FIGURES / 'accuracy_vs_delta.png'
+        fig.savefig(path)
+        plt.close(fig)
     print(f'wrote {path}')
 
 

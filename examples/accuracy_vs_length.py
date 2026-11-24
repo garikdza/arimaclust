@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from results import load_or_compute, parse_args
+from style import BAND_COLOURS, MINIMAL, SURFACE
 from synthetic import CURATED_SETS, clustering_scores
 
 LENGTHS = (50, 100, 200, 400, 800, 1600)
@@ -39,25 +40,28 @@ def compute() -> dict[str, np.ndarray]:
 def plot(results: dict[str, np.ndarray]) -> None:
     """Print the mean and spread of the saved scores and draw them against length, one curve per set."""
     lengths, scores = results['lengths'], results['scores']
-    fig, ax = plt.subplots(figsize=(7, 4.5))
-    for band, delta, set_scores in zip(results['bands'], results['deltas'], scores, strict=True):
-        for length, length_scores in zip(lengths, set_scores, strict=True):
-            print(f'{band:>14}  T={length:<5} AMI {length_scores.mean():.3f} ± {length_scores.std():.3f}')
-        means, sds = set_scores.mean(axis=1), set_scores.std(axis=1)
-        line, = ax.plot(lengths, means, marker='o', label=f'{band} (δ={float(delta)})')
-        ax.fill_between(lengths, means - sds, means + sds, color=line.get_color(), alpha=0.15)
-    ax.set_xscale('log')
-    ax.set_xticks(lengths, [str(length) for length in lengths])
-    ax.set_ylim(-0.05, 1.05)
-    ax.set_xlabel('series length T')
-    ax.set_ylabel(f'AMI (mean over {scores.shape[-1]} draws)')
-    ax.set_title(f'ConsistentClustering + ARMADistance (Piccolo, BIC), {int(results["n_clusters"])} clusters × '
-                 f'{int(results["n_per_cluster"])} series')
-    ax.legend(title='separation band')
+    with plt.rc_context(MINIMAL):
+        fig, ax = plt.subplots(figsize=(7.5, 4.5))
+        for band, delta, set_scores, colour in zip(results['bands'], results['deltas'], scores, BAND_COLOURS,
+                                                   strict=True):
+            for length, length_scores in zip(lengths, set_scores, strict=True):
+                print(f'{band:>14}  T={length:<5} AMI {length_scores.mean():.3f} ± {length_scores.std():.3f}')
+            means, sds = set_scores.mean(axis=1), set_scores.std(axis=1)
+            ax.fill_between(lengths, np.clip(means - sds, 0, 1), np.clip(means + sds, 0, 1), color=colour,
+                            alpha=0.08, linewidth=0)
+            ax.plot(lengths, means, color=colour, label=f'{band}  (δ={float(delta)})')
+            ax.scatter(lengths, means, s=30, color=colour, edgecolor=SURFACE, linewidth=1.5, zorder=3)
+        ax.set_xscale('log')
+        ax.set_xticks(lengths, [str(length) for length in lengths])
+        ax.minorticks_off()
+        ax.set_ylim(-0.02, 1.04)
+        ax.set_xlabel('series length T')
+        ax.set_ylabel(f'AMI (mean ± 1 sd, {scores.shape[-1]} draws)')
+        ax.legend(loc='upper left', bbox_to_anchor=(1.01, 1), title='separation band')
 
-    path = FIGURES / 'accuracy_vs_length.png'
-    fig.savefig(path, dpi=150, bbox_inches='tight')
-    plt.close(fig)
+        path = FIGURES / 'accuracy_vs_length.png'
+        fig.savefig(path)
+        plt.close(fig)
     print(f'wrote {path}')
 
 

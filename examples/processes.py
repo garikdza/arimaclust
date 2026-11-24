@@ -11,6 +11,7 @@ import numpy as np
 
 from arimaclust.data.generate import generate_arma_sample
 from arimaclust.metrics import arma2ar
+from style import AXIS, CLUSTER_COLOURS, MINIMAL
 from synthetic import CURATED_SETS, TAU
 
 LENGTH = 200
@@ -23,18 +24,19 @@ FIGURES = Path(__file__).parent / 'figures'
 def _save(fig: plt.Figure, name: str) -> None:
     """Write ``fig`` to ``FIGURES / name`` and close it."""
     path = FIGURES / name
-    fig.savefig(path, dpi=150, bbox_inches='tight')
+    fig.savefig(path)
     plt.close(fig)
     print(f'wrote {path}')
 
 
-def main() -> None:
-    FIGURES.mkdir(exist_ok=True)
+def _sample_series() -> None:
+    """Draw one sample series per cluster of each curated set, offset vertically."""
     np.random.seed(0)
     fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True)
     for ax, curated in zip(axes.flat, CURATED_SETS, strict=True):
-        for k, (ar, ma) in enumerate(curated.params):
-            ax.plot(generate_arma_sample(ar, ma, LENGTH) - k * OFFSET, linewidth=0.8, label=f'AR {ar}, MA {ma}')
+        for k, ((ar, ma), colour) in enumerate(zip(curated.params, CLUSTER_COLOURS, strict=True)):
+            ax.plot(generate_arma_sample(ar, ma, LENGTH) - k * OFFSET, color=colour, linewidth=0.8,
+                    label=f'AR {ar}, MA {ma}')
         ax.set_yticks([])
         # headroom for the legend above the top series
         ax.set_ylim(top=ax.get_ylim()[1] + OFFSET)
@@ -45,17 +47,21 @@ def main() -> None:
     fig.suptitle(f'one sample series of length {LENGTH} per cluster, offset vertically')
     _save(fig, 'sample_series.png')
 
+
+def _ar_coefficients() -> None:
+    """Draw the true AR(∞) coefficients of each cluster of each curated set."""
     lags = np.arange(1, TAU + 1)
     fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True)
     for ax, curated in zip(axes.flat, CURATED_SETS, strict=True):
-        for ar, ma in curated.params:
+        for (ar, ma), colour in zip(curated.params, CLUSTER_COLOURS, strict=True):
             # arma2ar gives the lag polynomial 1, -π₁, -π₂, …
             pi = -arma2ar((ar, ma), tau=TAU + 1)[1:]
-            ax.plot(lags, pi, marker='.', linewidth=0.8, label=f'AR {ar}, MA {ma}')
-        ax.axhline(0, color='grey', linewidth=0.5)
+            ax.plot(lags, pi, color=colour, marker='.', linewidth=1, label=f'AR {ar}, MA {ma}')
+        ax.axhline(0, color=AXIS, linewidth=0.8)
         # log lags, so the first few, where these low-order processes differ, are not squeezed together
         ax.set_xscale('log')
         ax.set_xticks(LAG_TICKS, [str(k) for k in LAG_TICKS])
+        ax.minorticks_off()
         ax.set_title(f'{curated.band} (δ={curated.delta})')
         ax.legend(fontsize=8)
     for ax in axes[-1]:
@@ -66,6 +72,12 @@ def main() -> None:
                  'between them')
     _save(fig, 'ar_coefficients.png')
 
+
+def main() -> None:
+    FIGURES.mkdir(exist_ok=True)
+    with plt.rc_context(MINIMAL):
+        _sample_series()
+        _ar_coefficients()
 
 if __name__ == '__main__':
     main()
