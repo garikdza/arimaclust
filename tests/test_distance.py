@@ -1,4 +1,5 @@
 import re
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -11,7 +12,7 @@ import arimaclust
 from arimaclust import ARMADistance, ConsistentClustering, ThresholdClustering
 from arimaclust.data import generate_arma_sample, generate_clusters
 from arimaclust.metrics import METRICS, mahalanobis
-from arimaclust.modeling import FittedARIMA
+from arimaclust.modeling import ARIMA
 
 # fixed white noise for parameters built at collection time
 NOISE = np.random.default_rng(0).standard_normal(80)
@@ -46,7 +47,7 @@ def test_ragged_list_gives_symmetric_matrix_in_input_order():
     np.testing.assert_array_equal(np.diag(D), 0)
     assert D[0, 1] < D[0, 2]  # the two AR(0.8) series are the close pair
     assert len(distance.models_) == 3
-    assert all(isinstance(m, FittedARIMA) for m in distance.models_)
+    assert all(isinstance(m, ARIMA) for m in distance.models_)
     for model, x in zip(distance.models_, _three_series(), strict=True):
         np.testing.assert_array_equal(model.series, x)
 
@@ -229,4 +230,16 @@ def test_non_invertible_fit_names_series(monkeypatch: pytest.MonkeyPatch, X: lis
 ])
 def test_bad_series_input_raises(X: ArrayLike, match: str):
     with pytest.raises(ValueError, match=match):
+        ARMADistance().fit(X)
+
+
+def test_failed_fit_names_series(monkeypatch: pytest.MonkeyPatch):
+    def fail_on_short(x: np.ndarray, **kwargs) -> SimpleNamespace:
+        if len(x) == 20:
+            raise ValueError('Could not successfully fit a viable ARIMA model')
+        return SimpleNamespace(arparams=lambda: np.array([]), maparams=lambda: np.array([]), order=(0, 0, 0))
+
+    monkeypatch.setattr(pmdarima, 'auto_arima', fail_on_short)
+    X = pd.DataFrame({'a': pd.Series(np.zeros(30)), 'b': pd.Series(np.zeros(20))})
+    with pytest.raises(ValueError, match=r"could not fit series 'b': Could not successfully fit"):
         ARMADistance().fit(X)

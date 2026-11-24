@@ -3,22 +3,22 @@ import numpy as np
 from scipy.linalg import toeplitz
 from statsmodels.tsa.stattools import acovf
 
-from arimaclust.modeling import FittedARIMA
+from arimaclust.modeling import ARIMA
 
 
 def _check_models(x: object, y: object) -> None:
-    if not (isinstance(x, FittedARIMA) and isinstance(y, FittedARIMA)):
-        raise TypeError(f'Both models must be FittedARIMA instances, got {type(x).__name__} and {type(y).__name__}')
+    if not (isinstance(x, ARIMA) and isinstance(y, ARIMA)):
+        raise TypeError(f'Both models must be ARIMA instances, got {type(x).__name__} and {type(y).__name__}')
 
 
-def piccolo(x: FittedARIMA, y: FittedARIMA, tau: int = 50) -> float:
+def piccolo(x: ARIMA, y: ARIMA, tau: int = 50) -> float:
     """
     Piccolo (1990) AR distance: Euclidean distance between the first ``tau`` AR(inf) coefficients
     of the two models.
 
     Parameters
     ----------
-    x, y : FittedARIMA
+    x, y : ARIMA
         invertible ARIMA models
     tau : int
         number of AR(inf) coefficients pi_1..pi_tau compared, an integer >= 1
@@ -32,13 +32,13 @@ def piccolo(x: FittedARIMA, y: FittedARIMA, tau: int = 50) -> float:
     return float(np.linalg.norm(x.pi(tau) - y.pi(tau)))
 
 
-def cepstral_coefficients(model: FittedARIMA, tau: int = 50) -> np.ndarray:
+def cepstral_coefficients(model: ARIMA, tau: int = 50) -> np.ndarray:
     """
     LPC cepstral coefficients of an invertible ARIMA model, computed from its AR(inf) coefficients.
 
     Parameters
     ----------
-    model : FittedARIMA
+    model : ARIMA
         invertible ARIMA model
     tau : int
         number of AR(inf) coefficients pi_1..pi_tau used, and of cepstral coefficients returned, an integer >= 1
@@ -56,14 +56,14 @@ def cepstral_coefficients(model: FittedARIMA, tau: int = 50) -> np.ndarray:
     return coefficients
 
 
-def cepstral(x: FittedARIMA, y: FittedARIMA, tau: int = 50) -> float:
+def cepstral(x: ARIMA, y: ARIMA, tau: int = 50) -> float:
     """
     LPC cepstral distance (Kalpakis et al., 2001; TSclust's ``diss.AR.LPC.CEPS``): Euclidean distance
     between the first ``tau`` cepstral coefficients of the two models.
 
     Parameters
     ----------
-    x, y : FittedARIMA
+    x, y : ARIMA
         invertible ARIMA models
     tau : int
         number of cepstral coefficients compared, computed from pi_1..pi_tau, an integer >= 1
@@ -77,10 +77,10 @@ def cepstral(x: FittedARIMA, y: FittedARIMA, tau: int = 50) -> float:
     return float(np.linalg.norm(cepstral_coefficients(x, tau=tau) - cepstral_coefficients(y, tau=tau)))
 
 
-def _ar_estimate(model: FittedARIMA, tau: int) -> tuple[np.ndarray, np.ndarray]:
+def _ar_estimate(model: ARIMA, tau: int) -> tuple[np.ndarray, np.ndarray]:
     """AR(inf) coefficients of the differenced model and their asymptotic covariance sigma^2 R^-1 / T."""
     if model.series is None:
-        raise ValueError('mahalanobis needs the series each model was fitted to; this FittedARIMA has none')
+        raise ValueError('mahalanobis needs the series each model was fitted to; this ARIMA has none')
     arma = model.differenced()
     pi = arma.pi(tau)
     if len(arma.series) <= tau:
@@ -93,7 +93,7 @@ def _ar_estimate(model: FittedARIMA, tau: int) -> tuple[np.ndarray, np.ndarray]:
     return pi, sigma2 * np.linalg.inv(autocovariances[:tau, :tau]) / len(arma.series)
 
 
-def mahalanobis(x: FittedARIMA, y: FittedARIMA, tau: int = 50) -> float:
+def mahalanobis(x: ARIMA, y: ARIMA, tau: int = 50) -> float:
     """
     Mahalanobis AR distance (Maharaj, 1996; TSclust's ``diss.AR.MAH`` for independent series): the Wald
     statistic D = d' (sigma_x^2 R_x^-1 / T_x + sigma_y^2 R_y^-1 / T_y)^-1 d of the difference d between
@@ -109,7 +109,7 @@ def mahalanobis(x: FittedARIMA, y: FittedARIMA, tau: int = 50) -> float:
 
     Parameters
     ----------
-    x, y : FittedARIMA
+    x, y : ARIMA
         invertible ARIMA models with their series; each differenced series must be longer than ``tau``, and
         should be much longer
     tau : int

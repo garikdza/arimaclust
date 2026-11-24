@@ -14,7 +14,7 @@ from sklearn.metrics import adjusted_mutual_info_score
 from arimaclust import ARMADistance, ConsistentClustering
 from arimaclust.data import generate_clusters
 from arimaclust.metrics import piccolo
-from arimaclust.modeling import FittedARIMA
+from arimaclust.modeling import ARIMA
 
 # (ar_params, ma_params), without the zero lag
 Params = tuple[list[float], list[float]]
@@ -58,7 +58,7 @@ def min_separation(params: list[Params]) -> float:
     delta : float
         the separation δ of the set
     """
-    models = [FittedARIMA(*p) for p in params]
+    models = [ARIMA(*p) for p in params]
     return min(piccolo(a, b, tau=TAU) for a, b in itertools.combinations(models, 2))
 
 
@@ -134,7 +134,7 @@ def generate_separated_params(n_clusters: int, delta: float, seed: int, max_draw
     kept, models = [], []
     for _ in range(max_draws):
         candidate = _draw_params(rng)
-        model = FittedARIMA(*candidate)
+        model = ARIMA(*candidate)
         if all(piccolo(model, other, tau=TAU) >= delta for other in models):
             kept.append(candidate)
             models.append(model)

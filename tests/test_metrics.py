@@ -6,13 +6,13 @@ import pandas as pd
 import pytest
 
 from arimaclust.metrics import cepstral, cepstral_coefficients, dist_matrix_parallel, mahalanobis, piccolo
-from arimaclust.modeling import FittedARIMA
+from arimaclust.modeling import ARIMA
 from synthetic import EXAMPLE1, EXAMPLE2
 
 X_SERIES = np.array([1., 2., 3., 4.])
 Y_SERIES = np.array([1., -1., 1., -1., 1., -1.])
-P, Q = FittedARIMA([0.4], []), FittedARIMA([-0.5], [])
-X_ITEM, Y_ITEM = FittedARIMA([0.4], [], series=X_SERIES), FittedARIMA([-0.5], [], series=Y_SERIES)
+P, Q = ARIMA([0.4], []), ARIMA([-0.5], [])
+X_ITEM, Y_ITEM = ARIMA([0.4], [], series=X_SERIES), ARIMA([-0.5], [], series=Y_SERIES)
 
 
 @pytest.mark.parametrize('tau', [0, -1, 2.5, True, '3', None], ids=repr)
@@ -50,7 +50,7 @@ def test_mahalanobis_series_not_longer_than_tau_raises():
                  np.sqrt(sum(((-0.9) ** j - (-0.5) ** j) ** 2 for j in range(1, 11))), id='ma1-tau10'),
 ])
 def test_piccolo_matches_closed_form(x_params: tuple, y_params: tuple, tau: int, expected: float):
-    distance = piccolo(FittedARIMA(*x_params), FittedARIMA(*y_params), tau=tau)
+    distance = piccolo(ARIMA(*x_params), ARIMA(*y_params), tau=tau)
     assert distance == pytest.approx(expected, rel=1e-12)
 
 
@@ -62,19 +62,19 @@ def test_piccolo_matches_closed_form(x_params: tuple, y_params: tuple, tau: int,
     pytest.param([0.5, -0.2], [], [0.5, -0.075, -0.175 / 3], id='ar2'),
 ])
 def test_cepstral_coefficients_match_hand_values(ar_params: list, ma_params: list, expected: list):
-    np.testing.assert_allclose(cepstral_coefficients(FittedARIMA(ar_params, ma_params), tau=3), expected,
+    np.testing.assert_allclose(cepstral_coefficients(ARIMA(ar_params, ma_params), tau=3), expected,
                                rtol=1e-12)
 
 
 def test_cepstral_ar1_closed_form():
     # an AR(1) has cepstral coefficients phi^n / n
     expected = np.sqrt(sum((0.6 ** n / n - (-0.3) ** n / n) ** 2 for n in range(1, 6)))
-    assert cepstral(FittedARIMA([0.6], []), FittedARIMA([-0.3], []), tau=5) == pytest.approx(expected,
+    assert cepstral(ARIMA([0.6], []), ARIMA([-0.3], []), tau=5) == pytest.approx(expected,
                                                                                                     rel=1e-10)
 
 
 def test_cepstral_zero_on_self_and_symmetric():
-    p, q = (FittedARIMA(*params) for params in EXAMPLE1)
+    p, q = (ARIMA(*params) for params in EXAMPLE1)
     assert cepstral(p, p) == 0
     assert cepstral(p, q) > 0
     assert cepstral(p, q) == cepstral(q, p)
@@ -85,8 +85,8 @@ def test_mahalanobis_tau1_hand_value():
     # sigma^2 = gamma_0 (1 + phi^2) - 2 phi gamma_1: sigma_x^2 = 6/5, sigma_y^2 = 5/12
     # V = sigma_x^2 / (gamma_x0 * 4) + sigma_y^2 / (gamma_y0 * 6) = 6/25 + 5/72 = 557/1800
     # D = (0.4 - (-0.5))^2 / V = 1458/557
-    x = FittedARIMA([0.4], [], series=X_SERIES)
-    y = FittedARIMA([-0.5], [], series=Y_SERIES)
+    x = ARIMA([0.4], [], series=X_SERIES)
+    y = ARIMA([-0.5], [], series=Y_SERIES)
     assert mahalanobis(x, y, tau=1) == pytest.approx(1458 / 557, rel=1e-12)
 
 
@@ -97,41 +97,41 @@ def test_mahalanobis_tau2_hand_value():
     # sigma_y^2 = 5/12; R^-1 = [[g0, -g1], [-g1, g0]] / (g0^2 - g1^2)
     # V = sigma_x^2 Rx^-1 / 4 + sigma_y^2 Ry^-1 / 6 = [[1263/2750, 542/4125], [542/4125, 1263/2750]]
     # d = (1, -0.2), D = d' V^-1 d = 656124/239663
-    x = FittedARIMA([0.5, -0.2], [], series=X_SERIES)
-    y = FittedARIMA([-0.5], [], series=Y_SERIES)
+    x = ARIMA([0.5, -0.2], [], series=X_SERIES)
+    y = ARIMA([-0.5], [], series=Y_SERIES)
     assert mahalanobis(x, y, tau=2) == pytest.approx(656124 / 239663, rel=1e-12)
 
 
 def test_mahalanobis_zero_for_equal_coefficients_and_symmetric():
-    assert mahalanobis(FittedARIMA([0.4], [], series=X_SERIES), FittedARIMA([0.4], [], series=Y_SERIES), tau=1) == 0
+    assert mahalanobis(ARIMA([0.4], [], series=X_SERIES), ARIMA([0.4], [], series=Y_SERIES), tau=1) == 0
 
-    x = FittedARIMA([0.5, -0.2], [], series=X_SERIES)
-    y = FittedARIMA([-0.5], [], series=Y_SERIES)
+    x = ARIMA([0.5, -0.2], [], series=X_SERIES)
+    y = ARIMA([-0.5], [], series=Y_SERIES)
     assert mahalanobis(x, y, tau=2) >= 0
     assert mahalanobis(x, y, tau=2) == pytest.approx(mahalanobis(y, x, tau=2), rel=1e-12)
 
 
 def test_mahalanobis_needs_the_series():
     with pytest.raises(ValueError, match='needs the series'):
-        mahalanobis(FittedARIMA([0.4], []), X_ITEM, tau=1)
+        mahalanobis(ARIMA([0.4], []), X_ITEM, tau=1)
 
 
 def test_mahalanobis_differences_each_series_by_its_own_order():
     # an ARIMA(1,1,0) with a cumulated series equals the ARMA(1,0) with the original series
-    integrated = FittedARIMA([0.4], [], d=1, series=np.r_[0, np.cumsum(X_SERIES)])
+    integrated = ARIMA([0.4], [], d=1, series=np.r_[0, np.cumsum(X_SERIES)])
     assert mahalanobis(integrated, Y_ITEM, tau=1) == mahalanobis(X_ITEM, Y_ITEM, tau=1)
 
 
 @pytest.mark.parametrize('metric', [piccolo, cepstral, mahalanobis])
 def test_metrics_reject_other_types(metric: Callable):
-    with pytest.raises(TypeError, match='FittedARIMA instances, got ArmaProcess'):
+    with pytest.raises(TypeError, match='ARIMA instances, got ArmaProcess'):
         metric(P.arma_process, X_ITEM, tau=1)
 
 
 @pytest.mark.parametrize('as_dict', [pytest.param(False, id='list'), pytest.param(True, id='dict')])
 def test_dist_matrix_entries_and_parallel_equality(as_dict: bool):
-    p1, p2 = (FittedARIMA(*params) for params in EXAMPLE2)
-    items = [p1, p2, p1, FittedARIMA(*EXAMPLE1[1])]
+    p1, p2 = (ARIMA(*params) for params in EXAMPLE2)
+    items = [p1, p2, p1, ARIMA(*EXAMPLE1[1])]
     data = dict(zip('abcd', items, strict=True)) if as_dict else items
 
     serial = dist_matrix_parallel(data, metric=piccolo, tau=100)

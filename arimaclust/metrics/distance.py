@@ -1,13 +1,16 @@
+from collections.abc import Hashable
+
 import numpy as np
 import pandas as pd
+from joblib import Parallel, delayed
 from numpy.typing import ArrayLike
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils.validation import check_array
 
 from arimaclust.metrics.autoregressive import METRICS
 from arimaclust.metrics.matrix import dist_matrix_parallel
-from arimaclust.modeling import fit_arimas
-from arimaclust.utils import check_tau
+from arimaclust.modeling import ARIMA
+from arimaclust.utils import check_tau, timeit
 
 RESERVED_ARIMA_KWARGS = ('d', 'max_p', 'max_q')
 
@@ -51,6 +54,21 @@ def _split_series(X: ArrayLike | pd.DataFrame) -> tuple[list[np.ndarray], list]:
     return series, names
 
 
+def _fit_named(x: np.ndarray, name: Hashable, **kwargs) -> ARIMA:
+    """``ARIMA.fit``, with a failure re-raised under the series' name."""
+    try:
+        return ARIMA.fit(x, **kwargs)
+    except Exception as error:
+        raise ValueError(f'auto_arima could not fit series {name!r}: {error}') from error
+
+
+@timeit
+def _fit_all(series: list[np.ndarray], names: list[Hashable], n_jobs: int | None, **kwargs) -> list[ARIMA]:
+    """Fit one model per series in parallel, in input order."""
+    jobs = (delayed(_fit_named)(x, name, **kwargs) for x, name in zip(series, names, strict=True))
+    return Parallel(n_jobs=n_jobs)(jobs)
+
+
 class ARMADistance(TransformerMixin, BaseEstimator):
     """
     Pairwise distances between ARIMA models fitted to each series.
@@ -88,7 +106,7 @@ class ARMADistance(TransformerMixin, BaseEstimator):
 
     Attributes
     ----------
-    models_ : list[FittedARIMA] | dict[Hashable, FittedARIMA]
+    models_ : list[ARIMA] | dict[Hashable, ARIMA]
         fitted model per series, holding its series, as ``{column: model}`` for a DataFrame
     dist_matrix_ : np.ndarray | pd.DataFrame
         symmetric distance matrix, labelled by the columns for a DataFrame
@@ -144,8 +162,8 @@ class ARMADistance(TransformerMixin, BaseEstimator):
                                      "metric='mahalanobis' needs a non-constant series")
 
         fit_kwargs = {'start_p': min(2, self.max_p), 'start_q': min(2, self.max_q), **arima_kwargs}
-        models = fit_arimas(series, n_jobs=self.n_jobs, names=names, max_p=self.max_p, max_q=self.max_q, d=self.d,
-                            **fit_kwargs)
+        models = _fit_all(series, names, n_jobs=self.n_jobs, max_p=self.max_p, max_q=self.max_q, d=self.d,
+                          **fit_kwargs)
         for name, model in zip(names, models, strict=True):
             if not model.isinvertible:
                 raise ValueError(f'Series {name!r} has a non-invertible fitted model {model!r}; '

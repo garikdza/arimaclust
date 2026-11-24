@@ -1,15 +1,19 @@
 from dataclasses import dataclass
 
 import numpy as np
+import pmdarima as pm
 import statsmodels.api as sm
+from numpy.typing import ArrayLike
 
 from arimaclust.utils import check_tau
 
 
 @dataclass(frozen=True, eq=False, repr=False)
-class FittedARIMA:
+class ARIMA:
     """
     An ARIMA(p, d, q) model, phi(B) (1 - B)^d x_t = theta(B) e_t, optionally with the series it was fitted to.
+
+    Build one from known parameters, or select and fit one to a series with ``ARIMA.fit``.
 
     Parameters
     ----------
@@ -38,7 +42,36 @@ class FittedARIMA:
             object.__setattr__(self, 'series', np.asarray(self.series, dtype=float))
 
     def __repr__(self) -> str:
-        return f'FittedARIMA(ar={self.ar.tolist()}, ma={self.ma.tolist()}, d={self.d})'
+        return f'ARIMA(ar={self.ar.tolist()}, ma={self.ma.tolist()}, d={self.d})'
+
+    @classmethod
+    def fit(cls, x: ArrayLike, information_criterion: str = 'bic', **kwargs) -> 'ARIMA':
+        """
+        Select and fit an ARIMA model to ``x`` with ``pmdarima.auto_arima``.
+
+        BIC is the default because consistent order selection (and hence the consistency guarantees of the
+        clustering algorithm) requires it; AIC is not consistent. ``auto_arima`` searches the orders stepwise
+        by default, which is faster than the full search the theorem assumes and rarely misses the BIC minimum;
+        ``stepwise=False, max_order=None`` runs the full search.
+
+        Parameters
+        ----------
+        x : ArrayLike
+            1-D series
+        information_criterion : str
+            order selection criterion
+        **kwargs
+            passed to ``auto_arima`` (``max_p``, ``max_q``, ``d``, ...), overriding its fixed options
+            ``error_action='ignore'``, ``stepwise=True`` and ``suppress_warnings=True``
+
+        Returns
+        -------
+        model : ARIMA
+            the selected model, holding ``x``
+        """
+        options = {'error_action': 'ignore', 'stepwise': True, 'suppress_warnings': True, **kwargs}
+        fitted = pm.auto_arima(x, information_criterion=information_criterion, **options)
+        return cls(fitted.arparams(), fitted.maparams(), int(fitted.order[1]), x)
 
     @property
     def order(self) -> tuple[int, int, int]:
@@ -84,7 +117,7 @@ class FittedARIMA:
         lag_polynomial = sm.tsa.ArmaProcess(self.ar_polynomial, np.r_[1, self.ma]).arma2ar(lags=tau + 1)
         return -lag_polynomial[1:]
 
-    def differenced(self) -> 'FittedARIMA':
+    def differenced(self) -> 'ARIMA':
         """The ARMA(p, q) model of the series differenced ``d`` times, with that series."""
         series = None if self.series is None else np.diff(self.series, n=self.d)
-        return FittedARIMA(self.ar, self.ma, 0, series)
+        return ARIMA(self.ar, self.ma, 0, series)
