@@ -7,7 +7,8 @@ Each series gets an ARMA model, selected by BIC with `pmdarima.auto_arima`. Seri
 the AR(∞) coefficients of the fitted models. They are then clustered with farthest-point initialisation and
 nearest-centre assignment ([Khaleghi et al., JMLR 2016](https://www.jmlr.org/papers/v17/khaleghi16a.html)). When
 the maximum orders and the number of clusters are known, this procedure is weakly asymptotically consistent
-(Adamyan, *Journal of Contemporary Mathematical Analysis* 58(3), 2023).
+(Adamyan, *Journal of Contemporary Mathematical Analysis* 58(3), 2023). [docs/theory.md](docs/theory.md) sets out
+the assumptions, the AR(∞) representation behind the distance, and the consistency theorems.
 
 <p align="center">
   <img src="examples/figures/accuracy_vs_length.png" width="640"
