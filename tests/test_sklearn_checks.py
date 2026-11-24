@@ -4,7 +4,7 @@ import pytest
 from sklearn.base import BaseEstimator
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
-from arimaclust import ARMADistance, ConsistentClustering, ThresholdClustering
+from arimaclust import ARMADistance, ConsistentClustering, KMedoids, ThresholdClustering
 
 PRECOMPUTED_ONLY = (
     'check_clustering fits raw (50, 2) blob features regardless of the pairwise tag, '
@@ -23,6 +23,7 @@ CHECKS = parametrize_with_checks(
     [
         ARMADistance(n_jobs=2),
         ConsistentClustering(distance='precomputed'),
+        KMedoids(distance='precomputed'),
         ThresholdClustering(alpha=0.5, distance='precomputed'),
     ],
     expected_failed_checks=_expected_failed_checks,

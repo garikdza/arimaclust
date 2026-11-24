@@ -1,4 +1,4 @@
-from arimaclust.clustering import ConsistentClustering, ThresholdClustering
+from arimaclust.clustering import ConsistentClustering, KMedoids, ThresholdClustering
 from arimaclust.metrics import ARMADistance
 
-__all__ = ['ARMADistance', 'ConsistentClustering', 'ThresholdClustering']
+__all__ = ['ARMADistance', 'ConsistentClustering', 'KMedoids', 'ThresholdClustering']
