@@ -7,8 +7,7 @@ Each series gets an ARMA model, selected by BIC with `pmdarima.auto_arima`. Seri
 the AR(∞) coefficients of the fitted models. They are then clustered with farthest-point initialisation and
 nearest-centre assignment ([Khaleghi et al., JMLR 2016](https://www.jmlr.org/papers/v17/khaleghi16a.html)). When
 the maximum orders and the number of clusters are known, this procedure is weakly asymptotically consistent
-(Adamyan, *Journal of Contemporary Mathematical Analysis* 58(3), 2023). [docs/theory.md](docs/theory.md) sets out
-the assumptions, the AR(∞) representation behind the distance, and the consistency theorems.
+(Adamyan, *Journal of Contemporary Mathematical Analysis* 58(3), 2023).
 
 <p align="center">
   <img src="examples/figures/accuracy_vs_length.png" width="640"
@@ -122,7 +121,8 @@ uv run --extra examples python examples/processes.py            # sample_series.
 If you use arimaclust, please cite:
 
 G. Adamyan, "Weakly consistent offline clustering of ARMA processes", *Journal of Contemporary Mathematical
-Analysis*, 58(3), 183–190, 2023. https://doi.org/10.3103/S1068362323030020
+Analysis*, 58(3), 183–190, 2023. https://doi.org/10.3103/S1068362323030020 (open copy in *Izvestiya NAN Armenii*:
+https://arar.sci.am//Content/359562/3-13.pdf)
 
 ## References
 
