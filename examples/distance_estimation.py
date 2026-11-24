@@ -1,8 +1,8 @@
 """
 The Piccolo distance between two fitted models against series length, for the closest pair of each curated set
 (``figures/estimated_distance.png``). The spread of the estimates shrinks as the series grow and their mean
-approaches the true distance δ. At these lengths BIC still often picks lower orders than the true ones, most for
-the closest set, where an AR(1) fits both the ARMA(1,1) and the MA(1) process well; that pulls its estimate below δ.
+approaches the true distance δ. On short series BIC often picks lower orders than the true ones, so the estimates
+can be off either way.
 
 The estimates are saved to ``figures/distance_estimation.npz`` and later runs plot from them; ``--recompute`` fits
 again.
