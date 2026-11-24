@@ -17,6 +17,9 @@ dependencies = [
     "joblib",
 ]
 
+[project.optional-dependencies]
+examples = ["matplotlib"]
+
 [dependency-groups]
 dev = [
     "pytest",
@@ -33,6 +36,7 @@ packages = ["arimaclust"]
 
 [tool.ruff]
 line-length = 120
+src = [".", "examples"]
 extend-exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
@@ -40,6 +44,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["examples"]
 addopts = "-m 'not slow'"
 markers = ["slow: statistical tests that take a while; run them with `uv run pytest -m slow`"]
 

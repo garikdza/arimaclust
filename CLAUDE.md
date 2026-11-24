@@ -14,9 +14,19 @@ The project is managed with uv (`pyproject.toml`, hatchling backend).
 - `uv run pytest`: run the tests, including sklearn's estimator checks (`tests/test_sklearn_checks.py`), but not the tests marked `slow`. For a single test use `uv run pytest tests/test_metrics.py::test_mahalanobis_tau1_hand_value`.
 - `uv run pytest -m slow`: run the slow statistical tests (clustering recovery rising with series length). Add a node id after `-m slow` to run one; without `-m slow`, a slow test is deselected even when named by node id.
 - `uv run pytest --cov`: run the tests with a coverage report for `arimaclust`. It fails below the 85% floor set in `pyproject.toml`, the same check CI runs. Add `--cov-report=html` for a browsable report.
-- `uv run ruff check .`: lint (rules E, F, I, UP and B, line length 120, notebooks excluded).
+- `uv run ruff check .`: lint (rules E, F, I, UP and B, line length 120, notebooks excluded). `src = [".", "examples"]` makes `synthetic`, `results` and `style` first-party imports.
+- `uv sync --extra examples`: also install matplotlib, which only the example scripts need.
+- `uv run --extra examples python examples/<script>.py`: run one example script. They need no network and no GPU, and write their figures to `examples/figures/`; only the three figures the README shows (`accuracy_vs_length.png`, `estimated_distance.png` and `accuracy_vs_delta.png`) are tracked, and `.gitignore` keeps the rest out. The four scripts that fit models save their raw results as `examples/figures/<script>.npz` and redraw from that file on later runs; add `--recompute` to fit again, as needed after changing a script's settings or a curated set (a changed setting is not detected).
 - CI (`.github/workflows/ci.yml`) runs ruff and the default tests with coverage on pushes to `main` and on PRs, and uploads the report to Codecov.
 - Nothing here needs a GPU. Prefix Python runs with `CUDA_VISIBLE_DEVICES=""`, as the global GPU rule requires.
+
+## Tests
+
+Tests are unit tests that mirror the code layout: one test file per module, at the mirrored path, named `test_<module>.py`, for example `examples/synthetic.py` → `tests/examples/test_synthetic.py`.
+
+- `arimaclust`'s tests sit directly in `tests/`, one file per area: `test_metrics.py` for `arimaclust/metrics/`, `test_estimators.py` for the estimators, and so on.
+- The `examples/` figure scripts are entry points and are run by hand. The modules they import, `synthetic.py`, `results.py` and `style.py`, are unit-tested.
+- pytest's `pythonpath = ["examples"]` lets the tests `import synthetic`, `import results` and `import style`, as the scripts do. None of these modules may import matplotlib, so their tests run under a plain `uv sync`, as in CI.
 
 ## Architecture
 
@@ -35,6 +45,13 @@ The pipeline is `estimate → distance matrix → cluster`. The public API is th
 - `models/`: sklearn clusterers taking `distance=None | ARMADistance(...) | 'precomputed'`. `models/distance_input.py`'s `DistanceInputMixin` fits a clone of `distance` (`None` means `ARMADistance()`) into `distance_`, or validates `X` as a square matrix for `'precomputed'` and sets the `pairwise` sklearn tag. The `distance` parameter itself is never fitted. Both clusterers fill `labels_` and provide `fit_predict`, but no `predict`.
   - `centroid.ConsistentClustering(n_clusters=2)` starts farthest-point selection at sample 0, then assigns each sample to its nearest centre (`centers_` holds the centre sample indices). This is the algorithm with the consistency proof.
   - `neighbours.ThresholdClustering(alpha)` builds the graph of pairs with distance ≤ `alpha` and returns its connected components as clusters. `alpha` has no default.
-- `data/`: synthetic ARMA cluster generators, with parameter sets in `examples.py` stored as `(ar_params, ma_params)` tuples.
+- `data/`: synthetic ARMA cluster generators (`generate.py`), taking each process as an `(ar_params, ma_params)` tuple. Parameter sets live in `examples/synthetic.py`, not in the package.
+
+`examples/` (not in the wheel, no `__init__.py`) holds synthetic examples at a controlled separation δ, the smallest Piccolo distance (`tau=50`) between the processes that generate the clusters.
+
+- `synthetic.py`: `BANDS` (four δ bands) and `band_of`, `CURATED_SETS` (one three-cluster `CuratedSet` per band, its δ recorded and checked in the tests), `min_separation`, `EXAMPLE1` / `EXAMPLE2` (a far and a near pair of processes, used by `tests/test_metrics.py` and `tests/test_data.py`), `generate_separated_params(n_clusters, delta, seed)` (random stationary, invertible ARMA(≤2, ≤2) processes kept greedily while pairwise ≥ δ; raises `RuntimeError` after `max_draws`) and `clustering_scores` (one seeded draw, `ConsistentClustering` + default `ARMADistance` fit and AMI per seed). No matplotlib.
+- `results.py`: `save_results` / `load_results` (a dict of arrays as a `.npz` file, no pickle, so object arrays are rejected at save), `load_or_compute(path, compute, recompute)` (computes and saves when the file is missing or `recompute` is set, then always returns what it reads back from the file) and `parse_args`, the `--recompute` flag. No matplotlib.
+- `style.py`: the minimal figure style every script draws in, `MINIMAL` (matplotlib rc settings for `plt.rc_context`), and the colours: `BAND_COLOURS` (one blue per δ band, darker for larger δ), `CLUSTER_COLOURS` and `DISTANCE_RAMP`. No matplotlib.
+- The scripts, each writing to `examples/figures/` in the `style.MINIMAL` style: `accuracy_vs_length.py` (AMI against length per band, the README's top figure), `accuracy_vs_delta.py` (AMI against δ on generated two-cluster sets, a README figure), `distance_matrix.py` (`distance_matrix.png`: heatmap and MDS embedding of a fitted distance matrix, misclustered series circled), `distance_estimation.py` (fitted against true δ by length, a README figure) and `processes.py` (sample series and true AR(∞) coefficients). They import `synthetic`, `results` and `style` as sibling modules. The four that fit models (all but `processes.py`) have a `compute()` that fits and returns the raw arrays (every draw's AMI or every distance estimate, the full distance matrix, plus the labels, lengths and δs the plot needs), a `plot(results)` that draws only from those loaded arrays, and a `main()` that joins them through `results.load_or_compute`, saving to `figures/<script>.npz`. `processes.py` fits nothing and draws directly.
 
 Exchange-rate data (apilayer) must never be committed; `.gitignore` blocks data and result files under `experiments/`.

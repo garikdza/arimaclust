@@ -139,3 +139,12 @@ experiments/**/*.npy
 experiments/**/*.json
 experiments/**/*.csv
 !experiments/exchange/codes.csv
+
+# example figures: only the ones README.md shows are tracked
+examples/figures/*
+!examples/figures/accuracy_vs_length.png
+!examples/figures/accuracy_vs_delta.png
+!examples/figures/estimated_distance.png
+
+# AGENTS.md is generated locally from CLAUDE.md and not tracked
+AGENTS.md
