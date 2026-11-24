@@ -244,11 +244,13 @@ def test_consistent_clustering_farthest_point_on_hand_matrix():
     np.testing.assert_array_equal(model.labels_, [0, 0, 1, 1, 2])
 
 
-def test_consistent_clustering_raises_when_too_few_distinct_groups():
+def test_consistent_clustering_warns_when_too_few_distinct_groups():
     # samples 0 and 1 coincide, as do 2 and 3: two groups, three clusters asked
     D = np.array([[0, 0, 1, 1], [0, 0, 1, 1], [1, 1, 0, 0], [1, 1, 0, 0]], dtype=float)
-    with pytest.raises(ValueError, match='only 2 distinct groups'):
-        ConsistentClustering(n_clusters=3, distance='precomputed').fit(D)
+    with pytest.warns(UserWarning, match='only 2 clusters were found'):
+        model = ConsistentClustering(n_clusters=3, distance='precomputed').fit(D)
+    np.testing.assert_array_equal(model.centers_, [0, 2])
+    np.testing.assert_array_equal(model.labels_, [0, 0, 1, 1])
     np.testing.assert_array_equal(ConsistentClustering(n_clusters=2, distance='precomputed').fit(D).labels_,
                                   [0, 0, 1, 1])
 

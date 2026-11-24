@@ -47,8 +47,9 @@ are dropped). Pass `distance='precomputed'` to cluster a ready distance matrix i
 
 `ARMADistance` fits ARIMA(p, d, q) models with `d=0` by default. A fixed `d=1` differences every series once, and
 `d=None` lets `auto_arima` choose `d` for each series. The differencing stays in the AR(∞) coefficients the distance
-compares, so a random walk and white noise are 1 apart, not 0. `ConsistentClustering` raises an error when the
-series form fewer distinct groups than `n_clusters`.
+compares, so a random walk and white noise are 1 apart, not 0. When the series form fewer distinct groups than
+`n_clusters`, for example when short series all get the same fitted model, `ConsistentClustering` warns and returns
+the clusters it found.
 
 ## Examples
 
@@ -80,18 +81,17 @@ the true δ.
 ![Estimated Piccolo distance against series length for the closest pair of each curated set, with the true δ as a line](examples/figures/estimated_distance.png)
 
 The line is the mean of the 20 estimates and the shaded band is ±1 standard deviation. The spread shrinks as the
-series grow: for the δ ≥ 0.6 pair the standard deviation falls from 0.30 at T = 50 to 0.035 at T = 1600, and for the
-two middle pairs the mean is within 0.01 of δ at T = 1600. The δ < 0.2 pair is the exception at these lengths. Its
-mean stays at about 0.08 against δ = 0.1008 from T = 400 on. Its processes are an ARMA(1,1) and an MA(1), BIC often
-fits an AR(1) to either of them, and two AR(1) fits are closer to each other than the true models are.
+series grow: for the δ ≥ 0.6 pair the standard deviation falls from 0.29 at T = 50 to 0.026 at T = 1600, and at
+T = 1600 every pair's mean is within 0.01 of its δ. Short series give noisy estimates that can be off either way,
+because BIC often picks lower orders than the true ones: the 0.4 ≤ δ < 0.6 pair stays below δ up to T = 800.
 
 ### Clustering accuracy
 
 The figure at the top comes from `accuracy_vs_length.py`. Each point is the mean AMI over eight draws of three
 clusters with ten series each, and the shaded band is ±1 standard deviation. Accuracy rises with the series length
-T, and sooner for larger δ: the δ ≥ 0.6 set is clustered perfectly from T = 200, and the two middle sets reach an AMI
-of 0.98 or more by T = 800. The δ < 0.2 set reaches only about 0.55 at T = 1600: its models are close enough that
-much longer series are needed to tell them apart.
+T, and sooner for larger δ: the δ ≥ 0.6 set is clustered perfectly from T = 200, and the two middle sets from T = 400
+and T = 800. The δ < 0.2 set reaches only about 0.48 at T = 1600: its models are close enough that much longer series
+are needed to tell them apart.
 
 ![Clustering accuracy rising with the separation δ between the processes, at series length 200](examples/figures/accuracy_vs_delta.png)
 

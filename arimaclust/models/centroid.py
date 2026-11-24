@@ -1,4 +1,5 @@
 import numbers
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -15,8 +16,9 @@ class ConsistentClustering(DistanceInputMixin, ClusterMixin, BaseEstimator):
     number of clusters (Khaleghi et al., JMLR 2016, applied to the Piccolo distance;
     weak consistency for ARMA processes: Adamyan, J. Contemp. Math. Anal. 2023).
 
-    ``fit`` raises a ``ValueError`` when the samples form fewer than ``n_clusters`` distinct groups,
-    that is when a new centre would be at distance 0 from the centres already chosen.
+    When the samples form fewer than ``n_clusters`` distinct groups, that is when a new centre would be at
+    distance 0 from the centres already chosen, ``fit`` warns and returns the clusters found so far; this
+    happens when short series all get the same fitted model.
 
     Parameters
     ----------
@@ -31,7 +33,8 @@ class ConsistentClustering(DistanceInputMixin, ClusterMixin, BaseEstimator):
     labels_ : np.ndarray
         cluster per sample
     centers_ : np.ndarray
-        sample index of each cluster centre, in selection order
+        sample index of each cluster centre, in selection order; fewer than ``n_clusters`` when the samples
+        form fewer distinct groups
     distance_ : ARMADistance | None
         fitted copy of ``distance``, or ``None`` when ``distance='precomputed'``
     """
@@ -70,9 +73,10 @@ class ConsistentClustering(DistanceInputMixin, ClusterMixin, BaseEstimator):
             d_to_nearest_center = dm[:, centers].min(axis=1)
             farthest = int(np.argmax(d_to_nearest_center))
             if d_to_nearest_center[farthest] <= 0:
-                raise ValueError(f'n_clusters={self.n_clusters}, but every sample is at distance 0 from one of '
-                                 f'the first {len(centers)} centres, so there are only {len(centers)} distinct '
-                                 'groups; lower n_clusters')
+                warnings.warn(f'n_clusters={self.n_clusters}, but every sample is at distance 0 from one of the '
+                              f'first {len(centers)} centres, so only {len(centers)} clusters were found',
+                              UserWarning, stacklevel=2)
+                break
             centers.append(farthest)
 
         self.centers_ = np.array(centers)
