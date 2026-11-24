@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from arimaclust import ARMADistance
-from arimaclust.data.generate import generate_clusters
+from arimaclust.data import generate_clusters
 from results import load_or_compute, parse_args
 from style import BAND_COLOURS, INK_SOFT, MINIMAL
 from synthetic import CURATED_SETS, min_separation
@@ -37,8 +37,7 @@ def compute() -> dict[str, np.ndarray]:
         pairs.append(f'{a} vs {b}')
         set_estimates = []
         for length in LENGTHS:
-            np.random.seed(length)
-            X, _ = generate_clusters([a, b], t_min=length, samples_per_cluster=N_PAIRS)
+            X, _ = generate_clusters([a, b], length, N_PAIRS, random_state=length)
             # one fit of all series; series k of the first process is paired with series k of the second
             D = ARMADistance(n_jobs=-1).fit_transform(X)
             set_estimates.append(D[np.arange(N_PAIRS), N_PAIRS + np.arange(N_PAIRS)])

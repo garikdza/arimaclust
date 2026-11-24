@@ -15,6 +15,9 @@ class ConsistentClustering(DistanceInputMixin, ClusterMixin, BaseEstimator):
     number of clusters (Khaleghi et al., JMLR 2016, applied to the Piccolo distance;
     weak consistency for ARMA processes: Adamyan, J. Contemp. Math. Anal. 2023).
 
+    ``fit`` raises a ``ValueError`` when the samples form fewer than ``n_clusters`` distinct groups,
+    that is when a new centre would be at distance 0 from the centres already chosen.
+
     Parameters
     ----------
     n_clusters : int
@@ -65,7 +68,12 @@ class ConsistentClustering(DistanceInputMixin, ClusterMixin, BaseEstimator):
         centers = [0]
         for _ in range(1, self.n_clusters):
             d_to_nearest_center = dm[:, centers].min(axis=1)
-            centers.append(int(np.argmax(d_to_nearest_center)))
+            farthest = int(np.argmax(d_to_nearest_center))
+            if d_to_nearest_center[farthest] <= 0:
+                raise ValueError(f'n_clusters={self.n_clusters}, but every sample is at distance 0 from one of '
+                                 f'the first {len(centers)} centres, so there are only {len(centers)} distinct '
+                                 'groups; lower n_clusters')
+            centers.append(farthest)
 
         self.centers_ = np.array(centers)
         self.labels_ = dm[:, centers].argmin(axis=1)

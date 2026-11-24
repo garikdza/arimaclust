@@ -13,7 +13,7 @@ from sklearn.metrics import adjusted_mutual_info_score
 
 from arimaclust import ARMADistance, ConsistentClustering
 from arimaclust.autoarima.estimation import to_arma_process
-from arimaclust.data.generate import generate_clusters
+from arimaclust.data import generate_clusters
 from arimaclust.metrics import piccolo
 
 # (ar_params, ma_params), without the zero lag
@@ -75,6 +75,7 @@ CURATED_SETS: tuple[CuratedSet, ...] = (
 EXAMPLE1: list[Params] = [([0.3, -0.2], [-0.5]), ([0.7, -0.4, 0.1], [0.5, -0.2])]
 # two processes whose AR(∞) representations are near: same MA part, AR parts 0.05 apart
 EXAMPLE2: list[Params] = [([0.3, -0.2], [-0.5]), ([0.25, -0.15], [-0.5])]
+
 
 def _lag_coefficients(rng: np.random.Generator, order: int) -> np.ndarray:
     """Coefficients after the leading 1 of a random (1 - r_1 B)...(1 - r_order B) with |r_i| <= MAX_ROOT_MODULUS."""
@@ -168,9 +169,7 @@ def clustering_scores(params: list[Params], length: int, n_per_cluster: int, see
     """
     scores = []
     for seed in seeds:
-        # statsmodels draws the samples from the global numpy random state
-        np.random.seed(seed)
-        X, y = generate_clusters(params, t_min=length, samples_per_cluster=n_per_cluster)
+        X, y = generate_clusters(params, length, n_per_cluster, random_state=seed)
         labels = ConsistentClustering(n_clusters=len(params), distance=ARMADistance(n_jobs=-1)).fit_predict(X)
         scores.append(adjusted_mutual_info_score(y, labels))
     return np.array(scores)

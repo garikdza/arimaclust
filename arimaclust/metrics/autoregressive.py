@@ -7,6 +7,8 @@ import statsmodels.api as sm
 from scipy.linalg import toeplitz
 from statsmodels.tsa.stattools import acovf
 
+from arimaclust.autoarima.estimation import to_arma_process
+
 
 def check_tau(tau: object) -> None:
     """Raise a ``ValueError`` unless ``tau``, the number of AR(inf) coefficients compared, is an integer >= 1."""
@@ -16,7 +18,10 @@ def check_tau(tau: object) -> None:
 
 def arma2ar(model: tuple | pm.arima.arima.ARIMA | sm.tsa.ArmaProcess, tau: int = 50) -> np.ndarray:
     """
-    Truncated AR(inf) lag polynomial of an invertible ARMA model.
+    Truncated AR(inf) lag polynomial of an invertible ARIMA model.
+
+    A differencing order is part of the AR polynomial, phi(B) (1 - B)^d: a ``pmdarima`` model keeps it, an
+    ``ArmaProcess`` built by ``to_arma_process(..., d=d)`` already holds it, and a tuple has none.
 
     Parameters
     ----------
@@ -34,20 +39,13 @@ def arma2ar(model: tuple | pm.arima.arima.ARIMA | sm.tsa.ArmaProcess, tau: int =
     if isinstance(model, tuple):
         if len(model) != 2:
             raise ValueError('Please provide tuple of AR and MA params')
-        ar_params, ma_params = model
+        process = to_arma_process(*model)
     elif isinstance(model, pm.arima.arima.ARIMA):
-        ar_params, ma_params = model.arparams(), model.maparams()
+        process = to_arma_process(model.arparams(), model.maparams(), d=model.order[1])
     elif isinstance(model, sm.tsa.ArmaProcess):
-        ar_params = ma_params = None
-    else:
-        raise TypeError('Argument model must be tuple of parameters, pmdarima ARIMA, or sm.ArmaProcess')
-
-    if ar_params is None:
         process = model
     else:
-        ar = np.r_[1, -np.asarray(ar_params, dtype=float)]  # add zero-lag and negate
-        ma = np.r_[1, np.asarray(ma_params, dtype=float)]  # add zero-lag
-        process = sm.tsa.ArmaProcess(ar, ma)
+        raise TypeError('Argument model must be tuple of parameters, pmdarima ARIMA, or sm.ArmaProcess')
 
     if not process.isinvertible:
         raise ValueError('Provided model is not invertible')
@@ -62,7 +60,7 @@ def piccolo(x_process: sm.tsa.ArmaProcess, y_process: sm.tsa.ArmaProcess, tau: i
     Parameters
     ----------
     x_process, y_process : sm.tsa.ArmaProcess
-        invertible ARMA models
+        invertible ARIMA models
     tau : int
         number of AR(inf) coefficients pi_1..pi_tau compared, an integer >= 1
 
@@ -85,12 +83,12 @@ def _ar_coefficients(process: sm.tsa.ArmaProcess, tau: int) -> np.ndarray:
 
 def cepstral_coefficients(process: sm.tsa.ArmaProcess, tau: int = 50) -> np.ndarray:
     """
-    LPC cepstral coefficients of an invertible ARMA model, computed from its AR(inf) coefficients.
+    LPC cepstral coefficients of an invertible ARIMA model, computed from its AR(inf) coefficients.
 
     Parameters
     ----------
     process : sm.tsa.ArmaProcess
-        invertible ARMA model
+        invertible ARIMA model
     tau : int
         number of AR(inf) coefficients pi_1..pi_tau used, and of cepstral coefficients returned, an integer >= 1
 
@@ -115,7 +113,7 @@ def cepstral(x_process: sm.tsa.ArmaProcess, y_process: sm.tsa.ArmaProcess, tau: 
     Parameters
     ----------
     x_process, y_process : sm.tsa.ArmaProcess
-        invertible ARMA models
+        invertible ARIMA models
     tau : int
         number of cepstral coefficients compared, computed from pi_1..pi_tau, an integer >= 1
 
@@ -131,7 +129,7 @@ def cepstral(x_process: sm.tsa.ArmaProcess, y_process: sm.tsa.ArmaProcess, tau: 
 
 
 class SeriesModel(NamedTuple):
-    """A series together with the ARMA model fitted to it, the input of ``mahalanobis``."""
+    """A series together with the ARMA model fitted to it, the input of ``mahalanobis``; no differencing order."""
 
     series: np.ndarray
     process: sm.tsa.ArmaProcess

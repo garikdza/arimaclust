@@ -9,7 +9,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from arimaclust.data.generate import generate_arma_sample
+from arimaclust.data import generate_arma_sample
 from arimaclust.metrics import arma2ar
 from style import AXIS, CLUSTER_COLOURS, MINIMAL
 from synthetic import CURATED_SETS, TAU
@@ -31,11 +31,11 @@ def _save(fig: plt.Figure, name: str) -> None:
 
 def _sample_series() -> None:
     """Draw one sample series per cluster of each curated set, offset vertically."""
-    np.random.seed(0)
+    rng = np.random.default_rng(0)
     fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True)
     for ax, curated in zip(axes.flat, CURATED_SETS, strict=True):
         for k, ((ar, ma), colour) in enumerate(zip(curated.params, CLUSTER_COLOURS, strict=True)):
-            ax.plot(generate_arma_sample(ar, ma, LENGTH) - k * OFFSET, color=colour, linewidth=0.8,
+            ax.plot(generate_arma_sample(ar, ma, LENGTH, random_state=rng) - k * OFFSET, color=colour, linewidth=0.8,
                     label=f'AR {ar}, MA {ma}')
         ax.set_yticks([])
         # headroom for the legend above the top series
@@ -78,6 +78,7 @@ def main() -> None:
     with plt.rc_context(MINIMAL):
         _sample_series()
         _ar_coefficients()
+
 
 if __name__ == '__main__':
     main()

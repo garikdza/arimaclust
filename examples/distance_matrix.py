@@ -15,7 +15,7 @@ from sklearn.manifold import MDS
 from sklearn.metrics import adjusted_mutual_info_score
 
 from arimaclust import ARMADistance, ConsistentClustering
-from arimaclust.data.generate import generate_clusters
+from arimaclust.data import generate_clusters
 from results import load_or_compute, parse_args
 from style import CLUSTER_COLOURS, DISTANCE_RAMP, INK, MINIMAL, SURFACE
 from synthetic import CURATED_SETS
@@ -30,12 +30,11 @@ RESULTS = FIGURES / 'distance_matrix.npz'
 def compute() -> dict[str, np.ndarray]:
     """Fit the clustering of the ``BAND`` set and return its distance matrix and labels."""
     curated = next(s for s in CURATED_SETS if s.band == BAND)
-    np.random.seed(0)
-    X, y = generate_clusters(curated.params, t_min=LENGTH, samples_per_cluster=N_PER_CLUSTER)
+    X, y = generate_clusters(curated.params, LENGTH, N_PER_CLUSTER, random_state=0)
     model = ConsistentClustering(n_clusters=len(curated.params), distance=ARMADistance(n_jobs=-1)).fit(X)
     return {
         'distances': model.distance_.dist_matrix_,
-        'y_true': np.asarray(y),
+        'y_true': y,
         'y_pred': model.labels_,
         'band': np.array(BAND),
         'delta': np.array(curated.delta),

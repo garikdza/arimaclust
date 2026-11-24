@@ -10,8 +10,10 @@ from sklearn.base import clone
 from sklearn.metrics import adjusted_mutual_info_score
 
 import arimaclust
-from arimaclust.data.generate import generate_arma_sample, generate_clusters
-from arimaclust.distance import METRICS, ARMADistance
+from arimaclust.autoarima.estimation import estimate_processes
+from arimaclust.data import generate_arma_sample, generate_clusters
+from arimaclust.distance import ARMADistance
+from arimaclust.metrics import METRICS, SeriesModel, mahalanobis
 from arimaclust.models.centroid import ConsistentClustering
 from arimaclust.models.neighbours import ThresholdClustering
 
@@ -28,10 +30,10 @@ def test_top_level_exports():
 
 
 def _three_series() -> list[np.ndarray]:
-    np.random.seed(1)
-    return [generate_arma_sample([0.8], [], 120),
-            generate_arma_sample([0.8], [], 100),
-            generate_arma_sample([-0.5], [], 90)]
+    rng = np.random.default_rng(1)
+    return [generate_arma_sample([0.8], [], 120, random_state=rng),
+            generate_arma_sample([0.8], [], 100, random_state=rng),
+            generate_arma_sample([-0.5], [], 90, random_state=rng)]
 
 
 def test_arma_distance_default_params_and_clone():
@@ -53,9 +55,7 @@ def test_ragged_list_gives_symmetric_matrix_in_input_order():
 
 
 def test_array_rows_match_list_of_series():
-    np.random.seed(2)
-    rows = [generate_arma_sample([0.8], [], 120), generate_arma_sample([0.8], [], 120),
-            generate_arma_sample([-0.5], [], 120)]
+    rows, _ = generate_clusters([([0.8], []), ([0.8], []), ([-0.5], [])], 120, 1, random_state=2)
     np.testing.assert_array_equal(ARMADistance().fit_transform(np.vstack(rows)), ARMADistance().fit_transform(rows))
 
 
@@ -136,14 +136,16 @@ def _orders(distance: ARMADistance) -> list[tuple[int, int]]:
 
 
 def _two_processes_sample() -> list[np.ndarray]:
-    np.random.seed(0)
-    return [generate_arma_sample([0.8], [], 300), generate_arma_sample([-0.6], [0.3], 250)]
+    # a draw on which AIC picks a larger model than BIC for the first series
+    rng = np.random.default_rng(5)
+    return [generate_arma_sample([0.8], [], 300, random_state=rng),
+            generate_arma_sample([-0.6], [0.3], 250, random_state=rng)]
 
 
 def test_arima_kwargs_reach_auto_arima():
     X = _two_processes_sample()
     assert _orders(ARMADistance().fit(X)) == [(1, 0), (1, 0)]  # BIC by default
-    assert _orders(ARMADistance(arima_kwargs={'information_criterion': 'aic'}).fit(X))[0] == (2, 1)
+    assert _orders(ARMADistance(arima_kwargs={'information_criterion': 'aic'}).fit(X))[0] == (2, 3)
 
 
 def test_arima_kwargs_can_override_fit_options():
@@ -161,12 +163,44 @@ def test_auto_selected_differencing_order_fits():
     assert ARMADistance(d=None).fit(_three_series()).dist_matrix_.shape == (3, 3)
 
 
+@pytest.mark.parametrize('metric', ['piccolo', 'cepstral'])
+def test_differencing_order_separates_random_walk_from_noise(metric: str):
+    # both fit as ARMA(0,0), once differenced and once not: the (1 - B) factor kept in the AR polynomial
+    # gives the walk pi = (1, 0, 0, ...), so the two are 1 apart instead of 0 (cepstral: c_n = 1/n)
+    rng = np.random.default_rng(0)
+    noise, walk = rng.standard_normal(500), np.cumsum(rng.standard_normal(500))
+    distance = ARMADistance(d=None, metric=metric).fit([noise, walk])
+    assert [len(p.ar) - 1 for p in distance.processes_] == [0, 1]
+    expected = 1.0 if metric == 'piccolo' else np.sqrt(sum(1 / n ** 2 for n in range(1, 51)))
+    assert distance.dist_matrix_[0, 1] == pytest.approx(expected)
+
+
+def test_fixed_differencing_order_is_kept_in_processes():
+    X = [np.cumsum(x) for x in _three_series()]
+    distance = ARMADistance(d=1).fit(X)
+    # a (1 - B) factor puts a root of the AR polynomial at B = 1, so its coefficients sum to 0
+    for process in distance.processes_:
+        assert process.ar.sum() == pytest.approx(0, abs=1e-12)
+
+
+def test_mahalanobis_with_differencing_compares_the_arma_part():
+    # the differenced series go with the ARMA part of each fit, not with the (1 - B)-multiplied processes_
+    X = [np.cumsum(x) for x in _three_series()]
+    D = ARMADistance(metric='mahalanobis', d=1, tau=10).fit_transform(X)
+    fits = estimate_processes(X, d=1, max_p=3, max_q=3, start_p=2, start_q=2)
+    items = [SeriesModel(np.diff(x), arma) for x, (arma, _) in zip(X, fits, strict=True)]
+    np.testing.assert_allclose(D[0, 1], mahalanobis(items[0], items[1], tau=10), rtol=1e-12)
+    np.testing.assert_allclose(D[0, 2], mahalanobis(items[0], items[2], tau=10), rtol=1e-12)
+
+
 def test_max_orders_below_two_fit():
     distance = ARMADistance(max_p=1, max_q=0).fit(_three_series())
     assert all(p <= 1 and q == 0 for p, q in _orders(distance))
 
 
 class _FakeArima:
+    order = (1, 0, 1)
+
     def __init__(self, ma: float) -> None:
         self.ma = ma
 
@@ -210,6 +244,15 @@ def test_consistent_clustering_farthest_point_on_hand_matrix():
     np.testing.assert_array_equal(model.labels_, [0, 0, 1, 1, 2])
 
 
+def test_consistent_clustering_raises_when_too_few_distinct_groups():
+    # samples 0 and 1 coincide, as do 2 and 3: two groups, three clusters asked
+    D = np.array([[0, 0, 1, 1], [0, 0, 1, 1], [1, 1, 0, 0], [1, 1, 0, 0]], dtype=float)
+    with pytest.raises(ValueError, match='only 2 distinct groups'):
+        ConsistentClustering(n_clusters=3, distance='precomputed').fit(D)
+    np.testing.assert_array_equal(ConsistentClustering(n_clusters=2, distance='precomputed').fit(D).labels_,
+                                  [0, 0, 1, 1])
+
+
 def test_threshold_clustering_links_chains_on_precomputed():
     # 0-1 and 1-2 are close, 3 is far: one chain cluster plus a singleton
     d = np.array([[0, 1, 5, 9], [1, 0, 1, 9], [5, 1, 0, 9], [9, 9, 9, 0]], dtype=float)
@@ -218,8 +261,7 @@ def test_threshold_clustering_links_chains_on_precomputed():
 
 
 def test_consistent_clustering_recovers_well_separated_clusters():
-    np.random.seed(0)
-    X, y = generate_clusters(WELL_SEPARATED, t_min=500, samples_per_cluster=5)
+    X, y = generate_clusters(WELL_SEPARATED, 500, 5, random_state=0)
     model = ConsistentClustering(n_clusters=2, distance=ARMADistance(max_p=2, max_q=2, d=0, tau=20)).fit(X)
     assert adjusted_mutual_info_score(y, model.labels_) == pytest.approx(1.0)
     assert isinstance(model.distance_, ARMADistance)
@@ -236,8 +278,7 @@ def test_consistent_clustering_recovery_improves_with_length():
     for length in lengths:
         scores = []
         for seed in seeds:
-            np.random.seed(seed)
-            X, y = generate_clusters(WELL_SEPARATED, t_min=length, samples_per_cluster=5)
+            X, y = generate_clusters(WELL_SEPARATED, length, 5, random_state=seed)
             model = ConsistentClustering(n_clusters=2, distance=distance).fit(X)
             scores.append(adjusted_mutual_info_score(y, model.labels_))
         means.append(np.mean(scores))
@@ -274,6 +315,12 @@ def test_nested_distance_params_are_settable():
     pytest.param(ThresholdClustering(distance='precomputed'), np.zeros((3, 3)), 'alpha', id='alpha=None'),
     pytest.param(ThresholdClustering(alpha=1.0, distance='euclidean'), np.zeros((3, 3)), 'distance must be',
                  id='distance=euclidean'),
+    pytest.param(ThresholdClustering(alpha=-0.1, distance='precomputed'), np.zeros((3, 3)), 'alpha must be a number',
+                 id='alpha=-0.1'),
+    pytest.param(ThresholdClustering(alpha='1', distance='precomputed'), np.zeros((3, 3)), 'alpha must be a number',
+                 id='alpha=str'),
+    pytest.param(ThresholdClustering(alpha=float('nan'), distance='precomputed'), np.zeros((3, 3)),
+                 'alpha must be a number', id='alpha=nan'),
 ])
 def test_bad_clusterer_input_raises(model: ConsistentClustering | ThresholdClustering, X: np.ndarray | list,
                                     match: str):

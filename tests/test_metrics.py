@@ -8,7 +8,7 @@ import pytest
 import statsmodels.api as sm
 
 from arimaclust.autoarima.estimation import to_arma_process
-from arimaclust.data.generate import generate_arma_sample
+from arimaclust.data import generate_arma_sample
 from arimaclust.metrics.autoregressive import (
     SeriesModel,
     arma2ar,
@@ -36,9 +36,15 @@ def test_arma2ar_input_types_match_hand_values(model: tuple | sm.tsa.ArmaProcess
     np.testing.assert_allclose(arma2ar(model, tau=4), [1, -0.8, 0.24, -0.072], rtol=1e-12)
 
 
+def test_arma2ar_keeps_pmdarima_differencing_order():
+    model = pm.ARIMA(order=(1, 1, 0)).fit(np.cumsum(generate_arma_sample([0.5], [], 300, random_state=0)))
+    phi = model.arparams()[0]
+    # (1 - phi B)(1 - B) = 1 - (1 + phi) B + phi B^2, and nothing after
+    np.testing.assert_allclose(arma2ar(model, tau=4), [1, -(1 + phi), phi, 0], atol=1e-12)
+
+
 def test_arma2ar_fitted_pmdarima_model():
-    np.random.seed(0)
-    model = pm.ARIMA(order=(1, 0, 1)).fit(generate_arma_sample([0.5], [0.3], 300))
+    model = pm.ARIMA(order=(1, 0, 1)).fit(generate_arma_sample([0.5], [0.3], 300, random_state=0))
     phi, theta = model.arparams()[0], model.maparams()[0]
     ar = arma2ar(model, tau=4)
     # the same ARMA(1,1) closed form as above, with the fitted phi and theta
@@ -169,8 +175,8 @@ def test_dist_matrix_entries_and_parallel_equality(as_dict: bool):
     items = [p1, p2, p1, to_arma_process(*EXAMPLE1[1])]
     data = dict(zip('abcd', items, strict=True)) if as_dict else items
 
-    serial = dist_matrix_parallel(data, metric_name='piccolo', tau=100)
-    parallel = dist_matrix_parallel(data, metric_name='piccolo', n_jobs=2, tau=100)
+    serial = dist_matrix_parallel(data, metric=piccolo, tau=100)
+    parallel = dist_matrix_parallel(data, metric=piccolo, n_jobs=2, tau=100)
     if as_dict:
         for D in (serial, parallel):
             assert isinstance(D, pd.DataFrame)

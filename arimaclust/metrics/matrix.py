@@ -1,4 +1,4 @@
-import importlib
+from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,7 @@ from arimaclust.utils import timeit
 
 
 @timeit
-def dist_matrix_parallel(items: list | dict, metric_name: str, n_jobs: int | None = None,
+def dist_matrix_parallel(items: list | dict, metric: Callable[..., float], n_jobs: int | None = None,
                          **kwargs) -> np.ndarray | pd.DataFrame:
     """
     Symmetric pairwise distance matrix, with the pairs computed in parallel.
@@ -17,8 +17,8 @@ def dist_matrix_parallel(items: list | dict, metric_name: str, n_jobs: int | Non
     ----------
     items : list | dict
         objects the metric compares (fitted processes, or ``SeriesModel`` for ``mahalanobis``)
-    metric_name : str
-        name of the metric in ``arimaclust.metrics``
+    metric : Callable[..., float]
+        distance between two items, for example a value of ``arimaclust.metrics.METRICS``
     n_jobs : int | None
         number of joblib workers; ``None`` runs serially
     **kwargs
@@ -29,9 +29,6 @@ def dist_matrix_parallel(items: list | dict, metric_name: str, n_jobs: int | Non
     dist_matrix : np.ndarray | pd.DataFrame
         symmetric distance matrix with a zero diagonal; a DataFrame labelled by the keys for a dict
     """
-    metrics_module = importlib.import_module('arimaclust.metrics')
-    metric = getattr(metrics_module, metric_name)
-
     data = list(items.values()) if isinstance(items, dict) else list(items)
     n = len(data)
     rows, cols = np.tril_indices(n, k=-1)
