@@ -36,7 +36,7 @@ packages = ["arimaclust"]
 
 [tool.ruff]
 line-length = 120
-src = [".", "examples", "examples/synthetic"]
+src = [".", "examples", "examples/synthetic", "examples/fred_md"]
 extend-exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
