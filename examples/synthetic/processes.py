@@ -40,7 +40,9 @@ def _sample_series() -> None:
     rng = np.random.default_rng(0)
     fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True)
     for ax, curated in zip(axes.flat, CURATED_SETS, strict=True):
-        for k, ((ar, ma), colour) in enumerate(zip(curated.params, CLUSTER_COLOURS, strict=True)):
+        for k, ((ar, ma), colour) in enumerate(
+            zip(curated.params, CLUSTER_COLOURS[: len(curated.params)], strict=True)
+        ):
             ax.plot(
                 generate_arma_sample(ar, ma, LENGTH, random_state=rng) - k * OFFSET,
                 color=colour,
@@ -63,7 +65,7 @@ def _ar_coefficients() -> None:
     lags = np.arange(1, TAU + 1)
     fig, axes = plt.subplots(2, 2, figsize=(11, 7), sharex=True)
     for ax, curated in zip(axes.flat, CURATED_SETS, strict=True):
-        for (ar, ma), colour in zip(curated.params, CLUSTER_COLOURS, strict=True):
+        for (ar, ma), colour in zip(curated.params, CLUSTER_COLOURS[: len(curated.params)], strict=True):
             ax.plot(lags, ARIMA(ar, ma).pi(TAU), color=colour, marker='.', linewidth=1, label=f'AR {ar}, MA {ma}')
         ax.axhline(0, color=AXIS, linewidth=0.8)
         # log lags, so the first few, where these low-order processes differ, are not squeezed together

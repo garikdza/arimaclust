@@ -82,7 +82,7 @@ def plot(results: dict[str, np.ndarray]) -> None:
         majority = {label: np.bincount(y[labels == label]).argmax() for label in np.unique(labels)}
         wrong = np.array([majority[label] != true for label, true in zip(labels, y, strict=True)])
         mds.grid(False)
-        for c, colour in zip(range(n_clusters), CLUSTER_COLOURS, strict=True):
+        for c, colour in zip(range(n_clusters), CLUSTER_COLOURS[:n_clusters], strict=True):
             mds.scatter(
                 *embedding[y == c].T,
                 s=40,
