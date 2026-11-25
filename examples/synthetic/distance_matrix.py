@@ -4,9 +4,10 @@ cluster beside a 2-D MDS embedding coloured by true cluster, with the miscluster
 
 The fit is saved to ``figures/distance_matrix.npz`` and later runs plot from it; ``--recompute`` fits again.
 
-Run with ``uv run --extra examples python examples/distance_matrix.py``.
+Run with ``uv run --extra examples python examples/synthetic/distance_matrix.py``.
 """
 
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -17,6 +18,10 @@ from sklearn.metrics import adjusted_mutual_info_score
 
 from arimaclust import ARMADistance, ConsistentClustering
 from arimaclust.data import generate_clusters
+
+# results.py and style.py are shared by every example and sit one folder up
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from results import load_or_compute, parse_args
 from style import CLUSTER_COLOURS, DISTANCE_RAMP, INK, MINIMAL, SURFACE
 from synthetic import CURATED_SETS
@@ -77,7 +82,7 @@ def plot(results: dict[str, np.ndarray]) -> None:
         majority = {label: np.bincount(y[labels == label]).argmax() for label in np.unique(labels)}
         wrong = np.array([majority[label] != true for label, true in zip(labels, y, strict=True)])
         mds.grid(False)
-        for c, colour in zip(range(n_clusters), CLUSTER_COLOURS, strict=True):
+        for c, colour in zip(range(n_clusters), CLUSTER_COLOURS[:n_clusters], strict=True):
             mds.scatter(
                 *embedding[y == c].T,
                 s=40,

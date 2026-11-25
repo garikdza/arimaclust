@@ -15,8 +15,8 @@ AXIS = '#c3c2b7'
 
 # one colour per band of synthetic.BANDS, lightest for the smallest δ
 BAND_COLOURS = ('#86b6ef', '#3987e5', '#1c5cab', '#0d366b')
-# one colour per cluster of a curated set
-CLUSTER_COLOURS = ('#2a78d6', '#eb6834', '#1baf7a')
+# one colour per cluster, as many as the most clusters an example draws; fewer clusters take the first ones
+CLUSTER_COLOURS = ('#2a78d6', '#eb6834', '#1baf7a', '#9b59b6')
 # a one-hue ramp for distances, lightest for the smallest
 DISTANCE_RAMP = ('#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', '#0d366b')
 

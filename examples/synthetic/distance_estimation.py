@@ -7,10 +7,11 @@ can be off either way.
 The estimates are saved to ``figures/distance_estimation.npz`` and later runs plot from them; ``--recompute`` fits
 again.
 
-Run with ``uv run --extra examples python examples/distance_estimation.py``.
+Run with ``uv run --extra examples python examples/synthetic/distance_estimation.py``.
 """
 
 import itertools
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -18,6 +19,10 @@ import numpy as np
 
 from arimaclust import ARMADistance
 from arimaclust.data import generate_clusters
+
+# results.py and style.py are shared by every example and sit one folder up
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from results import load_or_compute, parse_args
 from style import BAND_COLOURS, INK_SOFT, MINIMAL
 from synthetic import CURATED_SETS, min_separation

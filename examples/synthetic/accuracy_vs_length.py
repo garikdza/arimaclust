@@ -3,13 +3,17 @@ Clustering accuracy against series length, one curve per curated δ band (``figu
 
 The scores are saved to ``figures/accuracy_vs_length.npz`` and later runs plot from them; ``--recompute`` fits again.
 
-Run with ``uv run --extra examples python examples/accuracy_vs_length.py``.
+Run with ``uv run --extra examples python examples/synthetic/accuracy_vs_length.py``.
 """
 
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+
+# results.py and style.py are shared by every example and sit one folder up
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from results import load_or_compute, parse_args
 from style import BAND_COLOURS, MINIMAL, SURFACE
