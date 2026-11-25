@@ -30,6 +30,10 @@ examples/*/figures/*
 !examples/synthetic/figures/accuracy_vs_length.png
 !examples/synthetic/figures/accuracy_vs_delta.png
 !examples/synthetic/figures/estimated_distance.png
+!examples/fred_md/figures/autocorrelation_profiles.png
+!examples/fred_md/figures/distance_matrix.png
+# downloaded data is never committed
+examples/fred_md/data/
 
 # AGENTS.md is generated locally from CLAUDE.md and not tracked
 AGENTS.md
