@@ -77,11 +77,12 @@ labels = KMedoids(n_clusters=3, distance='precomputed').fit_predict(D)
 ([McCracken & Ng, 2016](https://doi.org/10.1080/07350015.2015.1086655)) into four clusters, with the cepstral distance and `KMedoids`.
 
 <p align="center">
-  <img src="examples/fred_md/figures/autocorrelation_profiles.png" width="900"
-       alt="Median sample autocorrelation at lags 1 to 12 for each of the four FRED-MD clusters, with interquartile bands">
+  <img src="examples/fred_md/figures/distance_matrix.png" width="900"
+       alt="Cepstral distance matrix of the FRED-MD series ordered by cluster beside a 2-D MDS embedding coloured by cluster">
 </p>
-<p align="center"><sub>Sample autocorrelation of the members of each FRED-MD cluster at lags 1 to 12: the median and
-the interquartile band.</sub></p>
+<p align="center"><sub>Left: the cepstral distance matrix of the FRED-MD series, its rows and columns ordered by
+cluster (lighter is closer). Right: a 2-D multidimensional scaling of the same distances, coloured by cluster, with the
+four medoids circled and named.</sub></p>
 
 [`examples/synthetic/`](examples/synthetic) evaluates the method on simulated sets with a controlled separation δ:
 how accuracy grows with series length and δ, and how well the distance is estimated.
