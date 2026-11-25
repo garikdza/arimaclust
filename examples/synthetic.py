@@ -64,7 +64,7 @@ def min_separation(params: list[Params]) -> float:
     return min(piccolo(a, b, tau=TAU) for a, b in itertools.combinations(models, 2))
 
 
-# one set per band, each mixing AR, MA and ARMA clusters; the deltas are recorded to 4 dp and checked in the tests
+# one set per band, each mixing AR, MA and ARMA clusters; the deltas are recorded to 4 dp
 CURATED_SETS: tuple[CuratedSet, ...] = (
     CuratedSet('δ < 0.2', 0.1008, [([0.5], [-0.3]), ([0.3], []), ([], [0.2])]),
     CuratedSet('0.2 ≤ δ < 0.4', 0.3055, [([0.6], []), ([0.1], [0.2]), ([], [0.5])]),
