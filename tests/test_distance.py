@@ -19,7 +19,7 @@ NOISE = np.random.default_rng(0).standard_normal(80)
 
 
 def test_top_level_exports():
-    assert sorted(arimaclust.__all__) == ['ARMADistance', 'ConsistentClustering', 'ThresholdClustering']
+    assert sorted(arimaclust.__all__) == ['ARMADistance', 'ConsistentClustering', 'KMedoids', 'ThresholdClustering']
     assert arimaclust.ARMADistance is ARMADistance
     assert arimaclust.ConsistentClustering is ConsistentClustering
     assert arimaclust.ThresholdClustering is ThresholdClustering
