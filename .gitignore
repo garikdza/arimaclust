@@ -37,3 +37,6 @@ examples/fred_md/data/
 
 # AGENTS.md is generated locally from CLAUDE.md and not tracked
 AGENTS.md
+
+# local/ holds untracked working files: datasets, drafts, notes
+local/

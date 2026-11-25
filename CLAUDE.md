@@ -21,6 +21,10 @@ The project is managed with uv (`pyproject.toml`, hatchling backend).
 - CI (`.github/workflows/ci.yml`) runs ruff and the default tests with coverage on pushes to `main` and on PRs, and uploads the report to Codecov.
 - Nothing here needs a GPU. Prefix Python runs with `CUDA_VISIBLE_DEVICES=""`, as the global GPU rule requires.
 
+## Local folder
+
+`local/` at the repository root is gitignored and never committed. Keep anything project-related that should not be tracked there: downloaded datasets, scratch scripts, drafts, notes, or code set aside from the package or the examples. Organise it in subfolders by topic (for example `local/fx/`). Ruff skips it through `.gitignore` and pytest only collects `tests/`, so nothing in it is linted or tested.
+
 ## Tests
 
 Tests are unit tests of `arimaclust`, and `tests/` mirrors the package: `arimaclust/<path>/<module>.py` is tested in `tests/<path>/test_<module>.py`. `test_sklearn_checks.py` (sklearn's estimator checks) is the one file spanning modules, and re-exporting `__init__.py` files get no test file.
