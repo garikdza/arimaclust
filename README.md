@@ -73,8 +73,8 @@ labels = KMedoids(n_clusters=3, distance='precomputed').fit_predict(D)
 
 ## Examples
 
-[`examples/fred_md/`](examples/fred_md) clusters 121 monthly US macroeconomic series from McCracken and Ng's FRED-MD
-into four clusters, with the cepstral distance and `KMedoids`.
+[`examples/fred_md/`](examples/fred_md) clusters 121 monthly US macroeconomic series from FRED-MD
+([McCracken & Ng, 2016](https://doi.org/10.1080/07350015.2015.1086655)) into four clusters, with the cepstral distance and `KMedoids`.
 
 <p align="center">
   <img src="examples/fred_md/figures/autocorrelation_profiles.png" width="900"
@@ -114,6 +114,8 @@ Analysis*, 58(3), 183–190, 2023. https://doi.org/10.3103/S1068362323030020
   *Computational Statistics & Data Analysis*, 52(4), 1860–1872, 2008. https://doi.org/10.1016/j.csda.2007.06.001
 - J.-M. Bardet, K. Kamila, W. Kengne, "Consistent model selection criteria and goodness-of-fit test for common
   time series models", *Electronic Journal of Statistics*, 14(1), 2009–2052, 2020. https://doi.org/10.1214/20-EJS1709
+- M. W. McCracken, S. Ng, "FRED-MD: A monthly database for macroeconomic research", *Journal of Business & Economic
+  Statistics*, 34(4), 574–589, 2016. https://doi.org/10.1080/07350015.2015.1086655
 
 ## License
 

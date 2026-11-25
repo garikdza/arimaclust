@@ -3,8 +3,6 @@
 This example clusters 121 monthly US macroeconomic series from FRED-MD by the dynamics of their fitted ARMA models.
 Each series gets an ARMA model selected by BIC, the models are compared by the cepstral distance, and k-medoids splits
 them into four clusters. FRED-MD sorts its series into eight topic groups (output, labour market, prices and so on).
-The clusters agree with those groups only in part: they follow how each series was made stationary more than its
-topic.
 
 ## Data
 
@@ -21,8 +19,9 @@ saves it to `data/2026-01-md.csv` and later runs read it from there. The `data/`
 
 ## Preprocessing
 
-- **Transformations.** Row 2 of the file gives each series' transformation code, which makes it stationary. The
-  example applies these codes as published:
+- **Transformations.** Row 2 of the file gives each series' transformation code, which makes it stationary. The codes
+  are McCracken and Ng's, documented in the data appendix of
+  [McCracken & Ng (2016)](https://doi.org/10.1080/07350015.2015.1086655). The example applies them as published:
 
   | code | transformation | series, of the 121 kept |
   |---|---|---|
@@ -76,12 +75,12 @@ AMI against the 8 FRED-MD groups 0.505, silhouette 0.464
 The AMI compares the clusters with the eight topic groups (1 means the same partition, 0 what chance would give).
 The silhouette, computed on the distance matrix, measures how well each series sits in its cluster (1 is best).
 
-| cluster | name | size | medoid | for example | transformation codes | median ACF at lags 1 / 2 / 12 |
-|---|---|---|---|---|---|---|
-| 1 | Real activity and jobs | 43 | IPFINAL | INDPRO, PAYEMS, UNRATE, RETAILx | tc5 35, tc2 8 | +0.06 / +0.15 / −0.00 |
-| 2 | Prices, money, credit and wages | 36 | CUSR0000SA0L5 | CPIAUCSL, PCEPI, M2SL, BUSLOANS | tc6 33, tc5 2, tc7 1 | −0.38 / −0.12 / −0.05 |
-| 3 | Housing, spreads and hours | 24 | AWHMAN | HOUST, PERMIT, T10YFFM, BAAFFM | tc1 10, tc4 10, tc5 4 | +0.93 / +0.89 / +0.60 |
-| 4 | Interest rates, exchange rates and stocks | 18 | CP3Mx | FEDFUNDS, GS10, EXJPUSx, S&P 500 | tc2 10, tc5 8 | +0.34 / +0.01 / −0.04 |
+| cluster | size | medoid | for example | transformation codes | median ACF at lags 1 / 2 / 12 |
+|---|---|---|---|---|---|
+| 1 | 43 | IPFINAL | INDPRO, PAYEMS, UNRATE, RETAILx | tc5 35, tc2 8 | +0.06 / +0.15 / −0.00 |
+| 2 | 36 | CUSR0000SA0L5 | CPIAUCSL, PCEPI, M2SL, BUSLOANS | tc6 33, tc5 2, tc7 1 | −0.38 / −0.12 / −0.05 |
+| 3 | 24 | AWHMAN | HOUST, PERMIT, T10YFFM, BAAFFM | tc1 10, tc4 10, tc5 4 | +0.93 / +0.89 / +0.60 |
+| 4 | 18 | CP3Mx | FEDFUNDS, GS10, EXJPUSx, S&P 500 | tc2 10, tc5 8 | +0.34 / +0.01 / −0.04 |
 
 The ACF is each member's sample autocorrelation of the transformed series. The table gives the cluster median; the
 printed output adds the interquartile range. Per cluster, the run prints:
@@ -138,51 +137,7 @@ decays slowly, and cluster 4 has one positive lag and nothing after it.</sub></p
 closer). Right: a 2-D multidimensional scaling of the same distances, coloured by cluster, with the four medoids
 circled and named.</sub></p>
 
-## Interpretation
-
-Each cluster is described by what the run measures: its transformation codes, its groups and its autocorrelations.
-
-- **Real activity and jobs (cluster 1, 43 series).** Growth rates (tc5) and differences (tc2) of output, employment,
-  sales and orders: 14 of the 16 output and income series and 22 of the 31 labour market series. Their
-  autocorrelation is small at every lag: the median is +0.06 at lag 1, with an interquartile range from −0.13 to
-  +0.28, +0.15 at lag 2 and zero at lag 12.
-- **Prices, money, credit and wages (cluster 2, 36 series).** All 33 tc6 series and the one tc7 series, plus two tc5
-  series. These are the series FRED-MD differences twice in logs: all 20 price series, 11 of the 13 money and credit
-  series and the three average hourly earnings series. Their median lag-1 autocorrelation is −0.38. That is
-  consistent with over-differencing: differencing a stationary series once too often gives a negative lag-1
-  autocorrelation and an MA root near 1.
-- **Housing, spreads and hours (cluster 3, 24 series).** The series used in levels or log levels (tc1 and tc4): the
-  10 housing starts and permits series, the 8 interest-rate spreads over the federal funds rate, and two average
-  weekly hours series. Their autocorrelation is high and decays slowly: +0.93 at lag 1 and +0.60 at lag 12.
-- **Interest rates, exchange rates and stocks (cluster 4, 18 series).** Changes in interest rates and the S&P dividend
-  yield (tc2), and growth rates of exchange rates and stock prices (tc5). The autocorrelation is +0.34 at lag 1 and
-  close to zero from lag 2 on. That is consistent with time averaging: the change of a monthly average of a daily random
-  walk has a lag-1 autocorrelation of about 0.25 and roughly zero beyond (Working, 1960). FRED documents FEDFUNDS, GS10,
-  TB3MS, CPF3M (the source of CP3Mx) and EXJPUS as monthly averages of daily data.
-
-## Caveats
-
-- **The clusters follow the transformation code more than the topic.** The AMI against the eight groups is 0.505.
-  Each cluster's transformation codes are more uniform than its groups: cluster 2 holds every tc6 and tc7 series,
-  cluster 3 every tc1 and tc4 series. Series that FRED-MD files in the same group are split by how they are
-  transformed: housing joins the interest-rate spreads in cluster 3, which are also used in levels, and the labour
-  market series are spread over clusters 1, 2 and 3.
-- **The prices and money cluster reflects the double log-differencing.** Its shape is the one twice-differenced series
-  show, so the cluster says more about the transformation chosen for these series than about inflation itself.
-- **The dynamics changed after the mid-1980s.** The example fits one model per series to the whole of 1960–2019,
-  so the clusters mainly reflect the earlier decades.
-- **Some cluster edges are weak.**
-  - Cluster 3 holds four tc5 growth rates, MANEMP, NDMANEMP, USFIRE and AMDMUOx, which are not levels like the rest.
-    Its interquartile range at lag 12, +0.37 to +0.72, shows the spread.
-  - Cluster 2 holds two tc5 series, UEMPLT5 and IPB51222S. They are noisy growth rates, not twice-differenced
-    series.
-  - Cluster 4 holds IPDMAT and M2REAL, which are neither interest rates, exchange rates nor stock prices.
-  - Cluster 1 has the widest lag-1 interquartile range, −0.13 to +0.28, so its members range from slightly
-    negative to clearly positive autocorrelation.
-
 ## References
 
 - M. W. McCracken, S. Ng, "FRED-MD: A monthly database for macroeconomic research", *Journal of Business & Economic
   Statistics*, 34(4), 574–589, 2016. https://doi.org/10.1080/07350015.2015.1086655
-- H. Working, "Note on the correlation of first differences of averages in a random chain", *Econometrica*, 28(4),
-  916–918, 1960. https://doi.org/10.2307/1907574
