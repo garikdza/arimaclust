@@ -2,20 +2,25 @@ import re
 from collections.abc import Callable
 
 import numpy as np
-import pandas as pd
 import pytest
 
-from arimaclust.metrics import cepstral, cepstral_coefficients, dist_matrix_parallel, mahalanobis, piccolo
+from arimaclust.metrics import cepstral, cepstral_coefficients, mahalanobis, piccolo
 from arimaclust.modeling import ARIMA
-from synthetic import EXAMPLE1, EXAMPLE2
+from synthetic import EXAMPLE1
 
 X_SERIES = np.array([1.0, 2.0, 3.0, 4.0])
+
+
 Y_SERIES = np.array([1.0, -1.0, 1.0, -1.0, 1.0, -1.0])
+
+
 P, Q = ARIMA([0.4], []), ARIMA([-0.5], [])
+
+
 X_ITEM, Y_ITEM = ARIMA([0.4], [], series=X_SERIES), ARIMA([-0.5], [], series=Y_SERIES)
 
 
-@pytest.mark.parametrize('tau', [0, -1, 2.5, True, '3', None], ids=repr)
+@pytest.mark.parametrize('tau', [0, True, 2.5], ids=repr)
 @pytest.mark.parametrize(
     ('func', 'args'),
     [
@@ -29,12 +34,6 @@ def test_bad_tau_raises(func: Callable, args: tuple, tau: object):
     # the repr shows the value as given, not tau + 1 (True as True, 2.5 as 2.5)
     with pytest.raises(ValueError, match=rf'tau must be an integer >= 1, got {re.escape(repr(tau))}'):
         func(*args, tau=tau)
-
-
-def test_numpy_integer_tau_matches_int():
-    assert piccolo(P, Q, np.int64(3)) == piccolo(P, Q, 3)
-    assert cepstral(P, Q, np.int64(3)) == cepstral(P, Q, 3)
-    assert mahalanobis(X_ITEM, Y_ITEM, np.int64(3)) == mahalanobis(X_ITEM, Y_ITEM, 3)
 
 
 def test_mahalanobis_series_not_longer_than_tau_raises():
@@ -138,30 +137,3 @@ def test_mahalanobis_differences_each_series_by_its_own_order():
 def test_metrics_reject_other_types(metric: Callable):
     with pytest.raises(TypeError, match='ARIMA instances, got ArmaProcess'):
         metric(P.arma_process, X_ITEM, tau=1)
-
-
-@pytest.mark.parametrize('as_dict', [pytest.param(False, id='list'), pytest.param(True, id='dict')])
-def test_dist_matrix_entries_and_parallel_equality(as_dict: bool):
-    p1, p2 = (ARIMA(*params) for params in EXAMPLE2)
-    items = [p1, p2, p1, ARIMA(*EXAMPLE1[1])]
-    data = dict(zip('abcd', items, strict=True)) if as_dict else items
-
-    serial = dist_matrix_parallel(data, metric=piccolo, tau=100)
-    parallel = dist_matrix_parallel(data, metric=piccolo, n_jobs=2, tau=100)
-    if as_dict:
-        for D in (serial, parallel):
-            assert isinstance(D, pd.DataFrame)
-            assert list(D.index) == list(D.columns) == list('abcd')
-        serial, parallel = serial.to_numpy(), parallel.to_numpy()
-    np.testing.assert_array_equal(serial, parallel)
-
-    # EXAMPLE2 shares theta(B) = 1 - 0.5B, so the pi difference is -0.05B(1 - B) / (1 - 0.5B):
-    # -0.05 at lag 1 and 0.025 * 0.5^(k-2) at lag k >= 2, with squares summing to 0.0025 + 0.000625 * 4/3 = 1/300
-    # (the tail beyond tau=100 is about 1e-60)
-    assert serial[1, 0] == serial[2, 1] == pytest.approx(np.sqrt(1 / 300), rel=1e-12)
-    assert serial[2, 0] == 0
-    np.testing.assert_array_equal(np.diag(serial), 0)
-    np.testing.assert_array_equal(serial, serial.T)
-    for i in range(4):
-        for j in range(i):
-            assert serial[i, j] == piccolo(items[i], items[j], tau=100)

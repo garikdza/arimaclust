@@ -11,7 +11,7 @@ Consistent model-based clustering of ARIMA time series. Each series gets an auto
 The project is managed with uv (`pyproject.toml`, hatchling backend).
 
 - `uv sync`: install the library plus the dev tools (pytest, pytest-cov, ruff).
-- `uv run pytest`: run the tests, including sklearn's estimator checks (`tests/test_sklearn_checks.py`), but not the tests marked `slow`. For a single test use `uv run pytest tests/test_metrics.py::test_mahalanobis_tau1_hand_value`.
+- `uv run pytest`: run the tests, including sklearn's estimator checks (`tests/test_sklearn_checks.py`), but not the tests marked `slow`. For a single test use `uv run pytest tests/metrics/test_autoregressive.py::test_mahalanobis_tau1_hand_value`, and for one area its folder, as in `uv run pytest tests/clustering`.
 - `uv run pytest -m slow`: run the slow statistical tests (clustering recovery rising with series length). Add a node id after `-m slow` to run one; without `-m slow`, a slow test is deselected even when named by node id.
 - `uv run pytest --cov`: run the tests with a coverage report for `arimaclust`. It fails below the 85% floor set in `pyproject.toml`, the same check CI runs. Add `--cov-report=html` for a browsable report.
 - `uv run ruff check .`: lint (rules E, F, I, UP and B, line length 120, notebooks excluded). `src = [".", "examples", "examples/synthetic", "examples/fred_md"]` makes `results`, `style`, `synthetic` and `fred_md` first-party imports.
@@ -23,10 +23,15 @@ The project is managed with uv (`pyproject.toml`, hatchling backend).
 
 ## Tests
 
-Tests are unit tests of `arimaclust` and sit directly in `tests/`, one file per area: `test_modeling.py` for `modeling.py`, `test_metrics.py` for the metric functions, `test_distance.py` for `ARMADistance`, `test_clustering.py` for `clustering/`, `test_data.py` for `data/`, and `test_sklearn_checks.py` for sklearn's estimator checks. Coverage measures `arimaclust` only.
+Tests are unit tests of `arimaclust`, and `tests/` mirrors the package: `arimaclust/<path>/<module>.py` is tested in `tests/<path>/test_<module>.py`. `test_sklearn_checks.py` (sklearn's estimator checks) is the one file spanning modules, and re-exporting `__init__.py` files get no test file.
 
+- A test sits in the file of the module that holds the code it exercises, and errors are tested where they are raised: `n_clusters` checks in `test_consistent.py` / `test_kmedoids.py`, the `distance` and square-matrix checks in `test_input.py`, `tau` validation in `test_utils.py` (each caller keeps one test that it validates).
+- Test folders have no `__init__.py`: pytest runs with `--import-mode=importlib` (`addopts` in `pyproject.toml`), so test files can't import each other. Helpers shared across files are fixtures in `tests/conftest.py`; a helper or constant used by one file stays in that file.
+- Names say the behaviour checked, `test_<what>_<expected outcome>`, such as `test_kmedoids_swap_tie_lowest_outgoing_index`. Expected values come from hand calculation or a closed form, explained in a comment, not from rerunning the code under test. Bad inputs go through one parametrized test per module, each case with an `id`, matching the error message.
+- Every test checks behaviour: no tests that only pin a default or a `get_params()` dict, only check an output's shape, or repeat a check made elsewhere.
+- Coverage measures `arimaclust` only.
 - The `examples/` code has no tests: the scripts are run by hand.
-- pytest's `pythonpath = ["examples/synthetic"]` lets `tests/test_metrics.py` and `tests/test_data.py` `import synthetic` for its `EXAMPLE1` / `EXAMPLE2` parameter sets, so `synthetic.py` must not import matplotlib: the tests run under a plain `uv sync`, as in CI. The other modules the scripts share (`results.py`, `style.py`, `fred_md.py`) keep matplotlib out too, leaving it to the scripts.
+- pytest's `pythonpath = ["examples/synthetic"]` lets `tests/metrics/test_autoregressive.py`, `tests/metrics/test_matrix.py` and `tests/data/test_generate.py` `import synthetic` for its `EXAMPLE1` / `EXAMPLE2` parameter sets, so `synthetic.py` must not import matplotlib: the tests run under a plain `uv sync`, as in CI. The other modules the scripts share (`results.py`, `style.py`, `fred_md.py`) keep matplotlib out too, leaving it to the scripts.
 
 ## Architecture
 
@@ -53,7 +58,7 @@ The pipeline is `fit a model per series → distance matrix → cluster`, one pa
 
 `examples/synthetic/` holds synthetic examples at a controlled separation δ, the smallest Piccolo distance (`tau=50`) between the processes that generate the clusters.
 
-- `synthetic.py`: `BANDS` (four δ bands) and `band_of`, `CURATED_SETS` (one three-cluster `CuratedSet` per band, its δ recorded), `min_separation`, `EXAMPLE1` / `EXAMPLE2` (a far and a near pair of processes, used by `tests/test_metrics.py` and `tests/test_data.py`), `generate_separated_params(n_clusters, delta, seed)` (random stationary, invertible ARMA(≤2, ≤2) processes kept greedily while pairwise ≥ δ; raises `RuntimeError` after `max_draws`) and `clustering_scores` (one seeded draw, `ConsistentClustering` + default `ARMADistance` fit and AMI per seed). No matplotlib.
+- `synthetic.py`: `BANDS` (four δ bands) and `band_of`, `CURATED_SETS` (one three-cluster `CuratedSet` per band, its δ recorded), `min_separation`, `EXAMPLE1` / `EXAMPLE2` (a far and a near pair of processes, used by the tests in `tests/metrics/` and `tests/data/`), `generate_separated_params(n_clusters, delta, seed)` (random stationary, invertible ARMA(≤2, ≤2) processes kept greedily while pairwise ≥ δ; raises `RuntimeError` after `max_draws`) and `clustering_scores` (one seeded draw, `ConsistentClustering` + default `ARMADistance` fit and AMI per seed). No matplotlib.
 - The scripts, each writing to `examples/synthetic/figures/` in the `style.MINIMAL` style: `accuracy_vs_length.py` (AMI against length per band, the README's top figure), `accuracy_vs_delta.py` (AMI against δ on generated two-cluster sets, shown in `examples/synthetic/README.md`), `distance_matrix.py` (`distance_matrix.png`: heatmap and MDS embedding of a fitted distance matrix, misclustered series circled), `distance_estimation.py` (fitted against true δ by length, shown in `examples/synthetic/README.md`) and `processes.py` (sample series and true AR(∞) coefficients). They import `synthetic` as a sibling module and `results` and `style` through the bootstrap line. The four that fit models (all but `processes.py`) have a `compute()` that fits and returns the raw arrays (every draw's AMI or every distance estimate, the full distance matrix, plus the labels, lengths and δs the plot needs), a `plot(results)` that draws only from those loaded arrays, and a `main()` that joins them through `results.load_or_compute`, saving to `figures/<script>.npz`. `processes.py` fits nothing and draws directly.
 
 `examples/fred_md/` clusters 121 monthly US macroeconomic series from McCracken and Ng's FRED-MD (vintage 2026-01, window 1960-01..2019-12) with the cepstral `ARMADistance` and `KMedoids(n_clusters=4)`. Its `README.md` describes the data, the settings, the clusters and their caveats, quoting the script's output.

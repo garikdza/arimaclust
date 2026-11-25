@@ -50,7 +50,7 @@ exclude = ["*.md"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["examples/synthetic"]
-addopts = "-m 'not slow'"
+addopts = "-m 'not slow' --import-mode=importlib"
 markers = ["slow: statistical tests that take a while; run them with `uv run pytest -m slow`"]
 
 [tool.coverage.run]
