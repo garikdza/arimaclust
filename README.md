@@ -77,29 +77,27 @@ labels = KMedoids(n_clusters=3, distance='precomputed').fit_predict(D)
 
 ## Examples
 
-[`examples/`](examples) evaluates the method on synthetic sets with controlled separation δ: curated three-cluster
-sets, one per δ band, and random two-cluster sets drawn at a given δ.
+[`examples/fred_md/`](examples/fred_md) clusters 121 monthly US macroeconomic series from McCracken and Ng's FRED-MD
+into four clusters, with the cepstral distance and `KMedoids`. The clusters match the eight FRED-MD topic groups only
+in part (AMI 0.50): they follow how each series was made stationary more than its topic.
 
 <p align="center">
-  <img src="examples/synthetic/figures/estimated_distance.png" width="800"
-       alt="Estimated Piccolo distance against series length for the closest pair of each curated set">
+  <img src="examples/fred_md/figures/autocorrelation_profiles.png" width="900"
+       alt="Median sample autocorrelation at lags 1 to 12 for each of the four FRED-MD clusters, with interquartile bands">
 </p>
-<p align="center"><sub>Estimated Piccolo distance against series length for the closest pair of processes in each
-curated set (mean ± 1 sd over 20 pairs); the line is the true δ.</sub></p>
+<p align="center"><sub>Sample autocorrelation of the members of each FRED-MD cluster at lags 1 to 12: the median and
+the interquartile band.</sub></p>
 
-<p align="center">
-  <img src="examples/synthetic/figures/accuracy_vs_delta.png" width="640"
-       alt="AMI against separation δ for random two-cluster sets at series length 200">
-</p>
-<p align="center"><sub>AMI against δ for random two-cluster sets at T = 200 (each dot a set, bars the band
-means).</sub></p>
+[`examples/synthetic/`](examples/synthetic) evaluates the method on simulated sets with a controlled separation δ:
+how accuracy grows with series length and δ, and how well the distance is estimated.
 
 ```bash
 uv sync --extra examples
+uv run --extra examples python examples/fred_md/clusters.py               # downloads the data the first time
 uv run --extra examples python examples/synthetic/accuracy_vs_length.py   # also accuracy_vs_delta.py, distance_estimation.py, ...
 ```
 
-Each script caches its fits as `examples/synthetic/figures/<script>.npz`; `--recompute` refits.
+Each script saves its fits as `figures/<script>.npz` in its folder; `--recompute` refits.
 
 ## Citation
 
