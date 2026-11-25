@@ -6,13 +6,17 @@ because δ is not the only thing that makes a pair of processes hard to tell apa
 
 The scores are saved to ``figures/accuracy_vs_delta.npz`` and later runs plot from them; ``--recompute`` fits again.
 
-Run with ``uv run --extra examples python examples/accuracy_vs_delta.py``.
+Run with ``uv run --extra examples python examples/synthetic/accuracy_vs_delta.py``.
 """
 
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+
+# results.py and style.py are shared by every example and sit one folder up
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from results import load_or_compute, parse_args
 from style import AXIS, BAND_COLOURS, MINIMAL, SURFACE

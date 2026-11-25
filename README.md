@@ -7,7 +7,7 @@
 arimaclust is a Python library for model-based time series clustering.
 
 <p align="center">
-  <img src="examples/figures/accuracy_vs_length.png" width="640"
+  <img src="examples/synthetic/figures/accuracy_vs_length.png" width="640"
        alt="AMI against series length for four synthetic three-cluster sets, rising to 1 sooner for larger separation">
 </p>
 <p align="center"><sub>AMI against series length on four synthetic three-cluster sets of separation δ, the smallest
@@ -81,14 +81,14 @@ labels = KMedoids(n_clusters=3, distance='precomputed').fit_predict(D)
 sets, one per δ band, and random two-cluster sets drawn at a given δ.
 
 <p align="center">
-  <img src="examples/figures/estimated_distance.png" width="800"
+  <img src="examples/synthetic/figures/estimated_distance.png" width="800"
        alt="Estimated Piccolo distance against series length for the closest pair of each curated set">
 </p>
 <p align="center"><sub>Estimated Piccolo distance against series length for the closest pair of processes in each
 curated set (mean ± 1 sd over 20 pairs); the line is the true δ.</sub></p>
 
 <p align="center">
-  <img src="examples/figures/accuracy_vs_delta.png" width="640"
+  <img src="examples/synthetic/figures/accuracy_vs_delta.png" width="640"
        alt="AMI against separation δ for random two-cluster sets at series length 200">
 </p>
 <p align="center"><sub>AMI against δ for random two-cluster sets at T = 200 (each dot a set, bars the band
@@ -96,10 +96,10 @@ means).</sub></p>
 
 ```bash
 uv sync --extra examples
-uv run --extra examples python examples/accuracy_vs_length.py   # also accuracy_vs_delta.py, distance_estimation.py, ...
+uv run --extra examples python examples/synthetic/accuracy_vs_length.py   # also accuracy_vs_delta.py, distance_estimation.py, ...
 ```
 
-Each script caches its fits as `examples/figures/<script>.npz`; `--recompute` refits.
+Each script caches its fits as `examples/synthetic/figures/<script>.npz`; `--recompute` refits.
 
 ## Citation
 

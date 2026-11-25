@@ -36,7 +36,7 @@ packages = ["arimaclust"]
 
 [tool.ruff]
 line-length = 120
-src = [".", "examples"]
+src = [".", "examples", "examples/synthetic"]
 extend-exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
@@ -49,7 +49,7 @@ exclude = ["*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["examples"]
+pythonpath = ["examples/synthetic"]
 addopts = "-m 'not slow'"
 markers = ["slow: statistical tests that take a while; run them with `uv run pytest -m slow`"]
 

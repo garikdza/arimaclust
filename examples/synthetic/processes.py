@@ -2,9 +2,10 @@
 The curated sets themselves, no fitting: one sample series per cluster (``figures/sample_series.png``) and the true
 AR(∞) coefficients π₁…π_tau that the Piccolo distance compares (``figures/ar_coefficients.png``).
 
-Run with ``uv run --extra examples python examples/processes.py``.
+Run with ``uv run --extra examples python examples/synthetic/processes.py``.
 """
 
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -12,6 +13,10 @@ import numpy as np
 
 from arimaclust.data import generate_arma_sample
 from arimaclust.modeling import ARIMA
+
+# results.py and style.py are shared by every example and sit one folder up
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from style import AXIS, CLUSTER_COLOURS, MINIMAL
 from synthetic import CURATED_SETS, TAU
 
